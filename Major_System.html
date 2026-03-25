@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Number Memory Game | Major System</title>
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          keyframes: {
+            shake: {
+              '0%,100%': { transform: 'translateX(0)' },
+              '20%':      { transform: 'translateX(-10px)' },
+              '40%':      { transform: 'translateX(10px)' },
+              '60%':      { transform: 'translateX(-8px)' },
+              '80%':      { transform: 'translateX(8px)' },
+            },
+            fadeIn: {
+              '0%':   { opacity: '0', transform: 'scale(0.9)' },
+              '100%': { opacity: '1', transform: 'scale(1)' },
+            },
+            fadeOut: {
+              '0%':   { opacity: '1', transform: 'scale(1)' },
+              '100%': { opacity: '0', transform: 'scale(0.85)' },
+            },
+            pulse2: {
+              '0%,100%': { boxShadow: '0 0 0 0 rgba(99,102,241,0)' },
+              '50%':     { boxShadow: '0 0 24px 8px rgba(99,102,241,0.45)' },
+            },
+            successGlow: {
+              '0%,100%': { boxShadow: '0 0 0 0 rgba(34,197,94,0)' },
+              '50%':     { boxShadow: '0 0 32px 12px rgba(34,197,94,0.5)' },
+            }
+          },
+          animation: {
+            'shake':         'shake 0.4s ease-in-out',
+            'fade-in':       'fadeIn 0.35s ease-out',
+            'fade-out':      'fadeOut 0.4s ease-in forwards',
+            'pulse2':        'pulse2 1.5s ease-in-out infinite',
+            'success-glow':  'successGlow 1s ease-in-out 2',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    :root { --timer-duration: 10s; }
+    body { transition: background-color 0.3s, color 0.3s; font-family: 'Inter', system-ui, sans-serif; }
+    #timer-bar-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899); border-radius: 9999px; transition: width linear; }
+    #timer-bar-fill.hidden { display: none; }
+    .num-reveal  { animation: fadeIn 0.35s ease-out; }
+    .num-hide    { animation: fadeOut 0.4s ease-in forwards; }
+    .input-shake { animation: shake 0.4s ease-in-out; }
+    #settings-body { max-height: 0; overflow: hidden; transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1); }
+    #settings-body.open { max-height: 2000px; }
+    .toggle-label { position: relative; display: inline-block; width: 48px; height: 26px; }
+    .toggle-label input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: #4b5563; border-radius: 9999px; cursor: pointer; transition: background 0.2s; }
+    .toggle-slider::before { content: ''; position: absolute; left: 3px; top: 3px; width: 20px; height: 20px; background: white; border-radius: 50%; transition: transform 0.2s; }
+    input:checked + .toggle-slider { background: #6366f1; }
+    input:checked + .toggle-slider::before { transform: translateX(22px); }
+    .font-code { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+    input[type="number"]::-webkit-inner-spin-button, 
+    input[type="number"]::-webkit-outer-spin-button { 
+      -webkit-appearance: none; 
+      margin: 0; 
+    }
+  </style>
+</head>
+
+<body class="bg-gray-100 dark:bg-gray-950 text-gray-800 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-300">
+
+<header class="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 px-6 py-3 flex items-center justify-between">
+  <div class="flex items-center gap-3">
+    <span class="text-2xl select-none">🧠</span>
+    <h1 class="text-xl font-bold tracking-tight">Memory <span class="text-indigo-500 dark:text-indigo-400">Pro</span></h1>
+  </div>
+  <div class="flex items-center gap-4">
+    <div id="streak-display" class="text-sm text-gray-500 dark:text-gray-400 hidden sm:flex items-center gap-1">
+      🔥 Streak: <strong id="streak-value" class="text-indigo-400">0</strong>
+    </div>
+    <button id="theme-btn" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+      <span id="theme-icon">🌙</span>
+    </button>
+    <button id="settings-toggle-btn" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors">
+      ⚙️ Settings
+    </button>
+  </div>
+</header>
+
+<main class="flex-1 flex flex-col items-center px-4 py-6 gap-6 max-w-3xl mx-auto w-full">
+
+  <!-- SETTINGS PANEL -->
+  <section id="settings-panel" class="w-full rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden">
+    <div id="settings-header" class="flex items-center justify-between px-5 py-4 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+      <div class="flex items-center gap-2">
+        <span class="text-lg">⚙️</span>
+        <span class="font-semibold text-base">Game Settings</span>
+        <span id="settings-validation-badge" class="hidden text-xs px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 ml-2">⚠ Errors</span>
+      </div>
+      <span id="settings-chevron" class="text-gray-400 transition-transform duration-300">▼</span>
+    </div>
+
+    <div id="settings-body">
+      <div class="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 border-t border-gray-100 dark:border-gray-800 pt-4">
+        <div class="sm:col-span-2"><h3 class="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-indigo-400 mb-1">🔢 Number Configuration</h3></div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">Digit Count (1-50)</label>
+          <input type="number" id="cfg-digit-count" min="1" max="50" value="4" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">Display Time (s) <span class="text-xs text-gray-400">(0 = infinite)</span></label>
+          <input type="number" id="cfg-display-time" min="0" max="500" step="0.001" value="10" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">Min Value</label>
+          <input type="number" id="cfg-min-range" placeholder="auto" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">Max Value</label>
+          <input type="number" id="cfg-max-range" placeholder="auto" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">Exclude Digits <span class="text-xs text-gray-400">(e.g. 2,3,4)</span></label>
+          <input type="text" id="cfg-exclude-digits" placeholder="e.g. 2,3,4" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">Max Attempts <span class="text-xs text-gray-400">(-1 = unlimited, 0 = 1 try)</span></label>
+          <input type="number" id="cfg-max-attempts" min="-1" max="100" value="3" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">Recent Games Limit <span class="text-xs text-gray-400">(-1 = unlimited, 0 = off)</span></label>
+          <input type="number" id="cfg-history-limit" min="-1" max="500" value="10" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none" />
+        </div>
+
+        <!-- Validation errors -->
+        <div id="cfg-errors" class="sm:col-span-2 hidden">
+          <div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg px-4 py-2 text-sm text-red-600 dark:text-red-400 space-y-1" id="cfg-error-list"></div>
+        </div>
+
+        <div class="sm:col-span-2 mt-2"><h3 class="text-xs font-bold uppercase tracking-widest text-purple-500 dark:text-purple-400 mb-1">🧩 Major System Mode</h3></div>
+
+        <div class="flex items-center gap-3">
+          <label class="toggle-label"><input type="checkbox" id="cfg-major-toggle" /><span class="toggle-slider"></span></label>
+          <div><div class="text-sm font-medium">Major System Mode</div><div class="text-xs text-gray-400">Encode numbers as words</div></div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <label class="toggle-label"><input type="checkbox" id="cfg-store-mapping" /><span class="toggle-slider"></span></label>
+          <div><div class="text-sm font-medium">Remember Mapping</div><div class="text-xs text-gray-400">Persist in localStorage</div></div>
+        </div>
+
+        <div id="major-direction-container" class="sm:col-span-2 flex flex-col gap-4 mt-1">
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium">Game Direction</label>
+            <div class="flex gap-4">
+              <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="major-dir" value="wordToNumber" checked class="accent-purple-500"> Word → Number</label>
+              <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="major-dir" value="numberToWord" class="accent-purple-500"> Number → Word</label>
+            </div>
+          </div>
+          
+          <div id="encoding-strategy-container" class="flex flex-col gap-2">
+            <label class="text-sm font-medium">Encoding Strategy</label>
+            <div class="flex gap-4">
+              <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="encoding-strategy" value="longest" checked class="accent-purple-500"> Longest Match</label>
+              <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="encoding-strategy" value="shortest" class="accent-purple-500"> Shortest Match</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="sm:col-span-2" id="major-import-section">
+          <label class="block text-sm font-medium mb-1">Major System Mapping <span class="text-gray-400 font-normal text-xs">(Word = digits)</span></label>
+          <textarea id="cfg-major-mapping" rows="4" placeholder="Soße = 00&#10;Bett = 1" class="w-full px-3 py-2 rounded-lg text-sm font-code bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-purple-500 outline-none resize-none"></textarea>
+          <div class="flex gap-2 mt-2">
+            <button id="btn-import-mapping" class="px-4 py-1.5 text-sm rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium transition">Import</button>
+            <button id="btn-load-demo" class="px-4 py-1.5 text-sm rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition">Load Demo</button>
+            <button id="btn-clear-mapping" class="px-4 py-1.5 text-sm rounded-lg bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 transition">Clear</button>
+          </div>
+          <div id="mapping-status" class="mt-2 text-xs"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GAME CARD -->
+  <section id="game-card" class="w-full rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl p-6">
+    <div class="flex items-center justify-between mb-4">
+      <div id="mode-badge" class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300">🔢 Standard Mode</div>
+      <div id="attempts-display" class="text-sm font-medium text-gray-500 dark:text-gray-400"></div>
+    </div>
+
+    <!-- PHASE: IDLE -->
+    <div id="phase-idle" class="text-center py-10">
+      <div class="text-6xl mb-4">🧠</div>
+      <h2 class="text-2xl font-bold mb-6">Ready to Test Your Memory?</h2>
+      <button id="btn-start" class="px-8 py-3 rounded-xl text-lg font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/30 transition hover:scale-105 active:scale-95">🚀 Start Game</button>
+    </div>
+
+    <!-- PHASE: REVEAL -->
+    <div id="phase-reveal" class="hidden text-center">
+      <p class="text-xs uppercase tracking-widest text-gray-400 mb-1">Memorize this!</p>
+      <div id="timer-bar-container" class="relative h-2 rounded-full bg-gray-200 dark:bg-gray-700 mb-6 overflow-hidden"><div id="timer-bar-fill" style="width:100%;"></div></div>
+      <div id="number-display" class="num-reveal font-black tracking-widest font-code text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800/50 rounded-2xl py-8 px-4 mb-4 border border-gray-100 dark:border-gray-800 select-none max-w-full overflow-hidden break-words"></div>
+      <div class="text-sm text-gray-500 dark:text-gray-400 mb-4">Disappears in <strong id="countdown-display" class="text-indigo-400 tabular-nums">--</strong>s</div>
+      <div class="flex gap-3 justify-center">
+        <button id="btn-continue-reveal" class="hidden px-6 py-2.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow">Continue ➔</button>
+        <button id="btn-skip-reveal" class="px-4 py-1.5 text-sm rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition text-gray-600 dark:text-gray-300">Skip Reveal ⏭</button>
+      </div>
+    </div>
+
+    <!-- PHASE: RECALL -->
+    <div id="phase-recall" class="hidden text-center">
+      <h2 class="text-xl font-bold mb-4" id="recall-prompt">What was the number?</h2>
+      <div class="flex gap-2 max-w-sm mx-auto mb-4">
+        <input type="text" id="recall-input" autocomplete="off" placeholder="Answer..." class="flex-1 px-4 py-3 rounded-xl text-lg text-center font-code font-bold bg-gray-100 dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 focus:border-indigo-500 outline-none transition" />
+        <button id="btn-submit" class="px-5 py-3 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition">✓</button>
+      </div>
+      <div id="recall-feedback" class="min-h-[2rem] text-sm font-medium"></div>
+    </div>
+
+    <!-- PHASE: RESULT -->
+    <div id="phase-result" class="hidden text-center py-4">
+      <div id="result-icon" class="text-6xl mb-3"></div>
+      <h2 id="result-title" class="text-2xl font-bold mb-4"></h2>
+      <div class="mb-6">
+        <div class="text-xs uppercase tracking-widest text-gray-400 mb-1">The number was:</div>
+        <div id="result-number" class="text-4xl font-black font-code tracking-widest py-4 px-6 rounded-xl inline-block bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"></div>
+      </div>
+      <div class="flex gap-3 justify-center">
+        <button id="btn-new-game" class="px-6 py-2.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow">🔄 Play Again</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section id="history-section" class="w-full rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow p-5">
+    <div class="flex items-center justify-between mb-3"><h2 class="font-semibold text-sm">📊 Recent Games</h2><button id="btn-clear-history" class="text-xs text-red-400 hover:text-red-500">Clear</button></div>
+    <div id="history-list" class="text-sm text-gray-400 dark:text-gray-500 text-center py-2">No games yet.</div>
+  </section>
+</main>
+
+<script>
+/* --- SETTINGS --- */
+const SettingsManager = (() => {
+  const STORAGE_KEY = 'nmg_settings_v5';
+  const DEFAULTS = { 
+    digitCount: 4, 
+    displayTime: 10, 
+    maxAttempts: 3, 
+    minRange: '', 
+    maxRange: '', 
+    excludeDigits: '',
+    historyLimit: 10,
+    majorMode: false, 
+    storeMapping: false, 
+    majorDirection: 'wordToNumber',
+    encodingStrategy: 'longest'
+  };
+  let current = { ...DEFAULTS };
+  function load() { try { const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); current = { ...DEFAULTS, ...saved }; } catch { current = { ...DEFAULTS }; } }
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(current)); }
+  function get(key) { return current[key]; }
+  function set(key, value) { current[key] = value; save(); }
+  function validate() {
+    const errors = [];
+    const dc = current.digitCount;
+    const dt = current.displayTime;
+    const ma = current.maxAttempts;
+    const hl = current.historyLimit;
+    const minR = current.minRange === '' ? null : Number(current.minRange);
+    const maxR = current.maxRange === '' ? null : Number(current.maxRange);
+    
+    if (dc < 1 || dc > 50) errors.push('Digit count must be 1-50.');
+    if (dt < 0 || dt > 500) errors.push('Display time must be 0-500.');
+    if (ma < -1 || ma > 100) errors.push('Max attempts must be -1 to 100.');
+    if (hl < -1 || hl > 500) errors.push('History limit must be -1 to 500.');
+    
+    const minAllowed = dc === 1 ? 0 : Math.pow(10, dc - 1);
+    if (minR !== null && minR < minAllowed) {
+      errors.push(`Min value for ${dc} digits must be ≥ ${minAllowed}.`);
+    }
+    
+    if (minR !== null && maxR !== null && minR > maxR) errors.push('Min must be ≤ Max.');
+    
+    if (current.excludeDigits) {
+      const parts = current.excludeDigits.split(',').map(d => d.trim());
+      if (parts.some(p => p !== '' && !/^[0-9]$/.test(p))) {
+        errors.push('Exclude digits must be comma-separated 0-9.');
+      }
+    }
+    
+    return errors;
+  }
+  return { load, save, get, set, getAll: () => ({...current}), validate };
+})();
+
+/* --- MAJOR SYSTEM --- */
+const MajorSystemEncoder = (() => {
+  const MAPPING_KEY = 'nmg_major_mapping_v3';
+  let wordToDigits = new Map();
+  let digitsToWords = new Map();
+  let rawText = '';
+
+  function importMapping(text) {
+    const lines = text.split('\n');
+    wordToDigits.clear(); digitsToWords.clear(); rawText = text;
+    let count = 0;
+    lines.forEach(line => {
+      const match = line.trim().match(/^(.+?)\s*=\s*(\d+)\s*$/);
+      if (match) {
+        const word = match[1].trim().toLowerCase(), digits = match[2];
+        wordToDigits.set(word, digits);
+        if (!digitsToWords.has(digits)) digitsToWords.set(digits, []);
+        digitsToWords.get(digits).push(match[1].trim());
+        count++;
+      }
+    });
+    return count;
+  }
+
+  function encode(padded, strategy = 'longest') {
+    const sorted = [...digitsToWords.keys()].sort((a,b) => strategy === 'longest' ? b.length - a.length : a.length - b.length);
+    function rec(rem) {
+      if (!rem) return { words: [], partial: false };
+      for (const k of sorted) {
+        if (rem.startsWith(k)) {
+          const r = rec(rem.slice(k.length));
+          return { words: [digitsToWords.get(k)[0], ...r.words], partial: r.partial };
+        }
+      }
+      return { words: [], partial: true, unmatched: rem };
+    }
+    return rec(padded);
+  }
+
+  function decode(phrase) {
+    const words = phrase.toLowerCase().split(/\s+/).filter(Boolean);
+    let digits = '';
+    for (const w of words) {
+      const d = wordToDigits.get(w);
+      if (!d) return null;
+      digits += d;
+    }
+    return digits;
+  }
+
+  const DEMO = `Mud = 00\nHut = 01\nCow = 0\nTie = 1\nNoah = 2\nMa = 3\nRay = 4\nLaw = 5\nShoe = 6\nCow = 7\nFee = 8\nPie = 9\nZoo = 10\nNose = 20\nNet = 21\nNun = 22\nMummy = 33\nRail = 45`;
+  return { importMapping, encode, decode, isLoaded: () => wordToDigits.size > 0, save: (t) => localStorage.setItem(MAPPING_KEY, t), load: () => localStorage.getItem(MAPPING_KEY), clear: () => localStorage.removeItem(MAPPING_KEY), DEMO };
+})();
+
+/* --- NUMBER GENERATOR (Digit-by-Digit) --- */
+const NumberGenerator = (() => {
+  function generateNumber(digitCount, minRange, maxRange, excludeDigitsStr) {
+    const excludeDigits = excludeDigitsStr.split(',').map(d => d.trim()).filter(d => d !== '');
+    const allowedDigits = ['0','1','2','3','4','5','6','7','8','9'].filter(d => !excludeDigits.includes(d));
+    
+    if (allowedDigits.length === 0) {
+      throw new Error('No digits available! All digits are excluded.');
+    }
+    
+    let minVal = minRange === '' ? (digitCount === 1 ? 0 : Math.pow(10, digitCount - 1)) : Number(minRange);
+    let maxVal = maxRange === '' ? (Math.pow(10, digitCount) - 1) : Number(maxRange);
+    
+    // Ensure min/max are within valid range
+    const absoluteMin = digitCount === 1 ? 0 : Math.pow(10, digitCount - 1);
+    const absoluteMax = Math.pow(10, digitCount) - 1;
+    minVal = Math.max(minVal, absoluteMin);
+    maxVal = Math.min(maxVal, absoluteMax);
+    
+    if (minVal > maxVal) {
+      throw new Error(`Invalid range: min (${minVal}) > max (${maxVal})`);
+    }
+    
+    // Helper to check if a number prefix can still reach within range
+    function canReachRange(prefix, remainingLength, minVal, maxVal) {
+      const minPossible = parseInt(prefix + '0'.repeat(remainingLength), 10);
+      const maxPossible = parseInt(prefix + '9'.repeat(remainingLength), 10);
+      return maxPossible >= minVal && minPossible <= maxVal;
+    }
+    
+    // Helper to get allowed digits for current position
+    function getAllowedDigitsForPosition(prefix, position, digitCount, minVal, maxVal, allowedDigits, isFirstDigit) {
+      let available = [...allowedDigits];
+      
+      // First digit cannot be 0 unless digitCount == 1 and minVal <= 0
+      if (isFirstDigit && digitCount > 1) {
+        available = available.filter(d => d !== '0');
+        if (available.length === 0) available = [...allowedDigits]; // fallback
+      }
+      
+      // Filter by range constraints
+      available = available.filter(digit => {
+        const newPrefix = prefix + digit;
+        const remaining = digitCount - position - 1;
+        return canReachRange(newPrefix, remaining, minVal, maxVal);
+      });
+      
+      return available;
+    }
+    
+    // Build number digit by digit
+    let digits = [];
+    let attempts = 0;
+    const maxAttempts = 100;
+    
+    while (attempts < maxAttempts) {
+      digits = [];
+      let valid = true;
+      
+      for (let pos = 0; pos < digitCount; pos++) {
+        const isFirstDigit = (pos === 0);
+        const prefix = digits.join('');
+        let available = getAllowedDigitsForPosition(prefix, pos, digitCount, minVal, maxVal, allowedDigits, isFirstDigit);
+        
+        if (available.length === 0) {
+          valid = false;
+          break;
+        }
+        
+        const randomIndex = Math.floor(Math.random() * available.length);
+        digits.push(available[randomIndex]);
+      }
+      
+      if (valid) {
+        const num = parseInt(digits.join(''), 10);
+        if (num >= minVal && num <= maxVal) {
+          return num;
+        }
+      }
+      attempts++;
+    }
+    
+    // Fallback: try a direct random approach
+    let fallbackAttempts = 0;
+    const maxFallback = 1000;
+    while (fallbackAttempts < maxFallback) {
+      const randomNum = Math.floor(Math.random() * (maxVal - minVal + 1)) + minVal;
+      const numStr = randomNum.toString();
+      if (!excludeDigits.some(d => numStr.includes(d))) {
+        return randomNum;
+      }
+      fallbackAttempts++;
+    }
+    
+    throw new Error(`No valid number found with current settings. Try adjusting exclude digits or range.`);
+  }
+  
+  return { generate: generateNumber };
+})();
+
+/* --- GAME CONTROLLER --- */
+const GameController = (() => {
+  let state = 'idle', currentNum = '', encoded = '', attempts = 0, streak = 0, timer = null;
+  let callbacks = {};
+
+  function start() {
+    const s = SettingsManager.getAll();
+    const errors = SettingsManager.validate();
+    if (errors.length > 0) return callbacks.onErr('Invalid settings: ' + errors.join(', '));
+    if (s.majorMode && !MajorSystemEncoder.isLoaded()) return callbacks.onErr('Import mapping first');
+
+    try {
+      currentNum = NumberGenerator.generate(
+        s.digitCount, 
+        s.minRange, 
+        s.maxRange, 
+        s.excludeDigits
+      ).toString();
+    } catch (e) {
+      return callbacks.onErr(e.message);
+    }
+
+    attempts = s.maxAttempts === -1 ? Infinity : (s.maxAttempts === 0 ? 1 : s.maxAttempts);
+    const actualAttempts = attempts === Infinity ? Infinity : attempts;
+
+    if (s.majorMode) {
+      const padded = currentNum.padStart(s.digitCount, '0');
+      const res = MajorSystemEncoder.encode(padded, s.encodingStrategy);
+      if (res.partial) return callbacks.onErr(`Mapping incomplete for number ${currentNum}. Missing: ${res.unmatched || ''}`);
+      encoded = res.words.join(' ');
+    }
+
+    state = 'reveal';
+    const display = (s.majorMode && s.majorDirection === 'wordToNumber') ? encoded : currentNum;
+    callbacks.onReveal(display, s.displayTime, s.digitCount);
+    
+    if (s.displayTime > 0) {
+      let rem = s.displayTime;
+      timer = setInterval(() => {
+        rem = Math.max(0, rem - 1);
+        callbacks.onTick(rem, s.displayTime);
+        if (rem <= 0) beginRecall();
+      }, 1000);
+    }
+  }
+
+  function beginRecall() {
+    clearInterval(timer); state = 'recall';
+    const s = SettingsManager.getAll();
+    const prompt = (s.majorMode && s.majorDirection === 'numberToWord') ? `Enter the Major System words for ${currentNum}` : 'What was the number?';
+    const attemptsLeft = attempts === Infinity ? Infinity : attempts;
+    callbacks.onRecall(prompt, attemptsLeft);
+  }
+
+  function submit(val) {
+    const s = SettingsManager.getAll();
+    let correct = false;
+    if (s.majorMode && s.majorDirection === 'numberToWord') {
+      correct = val.toLowerCase().trim() === encoded.toLowerCase().trim();
+    } else if (s.majorMode && s.majorDirection === 'wordToNumber') {
+      correct = val.trim() === currentNum;
+    } else {
+      correct = val.trim() === currentNum;
+    }
+
+    if (correct) { streak++; resolve(true); }
+    else {
+      if (attempts !== Infinity) {
+        attempts--;
+        if (attempts <= 0) { streak = 0; resolve(false); }
+        else callbacks.onWrong(attempts);
+      } else {
+        callbacks.onWrong(Infinity);
+      }
+    }
+  }
+
+  function resolve(win) {
+    state = 'result';
+    const s = SettingsManager.getAll();
+    const limit = s.historyLimit;
+    
+    if (limit !== 0) {
+      const history = JSON.parse(localStorage.getItem('nmg_history_v5') || '[]');
+      
+      let historyDisplay = currentNum;
+      if (s.majorMode) {
+        if (s.majorDirection === 'wordToNumber') {
+          historyDisplay = `${encoded} → ${currentNum}`;
+        } else {
+          historyDisplay = `${currentNum} → ${encoded}`;
+        }
+      }
+
+      history.unshift({ 
+        num: historyDisplay, 
+        win, 
+        date: new Date().toLocaleTimeString() 
+      });
+      
+      const finalHistory = limit === -1 ? history : history.slice(0, limit);
+      localStorage.setItem('nmg_history_v5', JSON.stringify(finalHistory));
+    }
+    
+    callbacks.onResult(win, currentNum, streak);
+  }
+
+  return { start, submit, skip: beginRecall, setCallbacks: (c) => callbacks = c, reset: () => { state = 'idle'; clearInterval(timer); } };
+})();
+
+/* --- UI --- */
+const UIManager = (() => {
+  const $ = (id) => document.getElementById(id);
+  const el = {
+    idle: $('phase-idle'), reveal: $('phase-reveal'), recall: $('phase-recall'), result: $('phase-result'),
+    numDisp: $('number-display'), timerBar: $('timer-bar-fill'), countdown: $('countdown-display'),
+    input: $('recall-input'), feedback: $('recall-feedback'), prompt: $('recall-prompt'),
+    attempts: $('attempts-display'), mode: $('mode-badge'), streak: $('streak-value'), streakBox: $('streak-display'),
+    history: $('history-list'), mapping: $('cfg-major-mapping'), status: $('mapping-status'),
+    errors: $('cfg-errors'), errorList: $('cfg-error-list'), validBadge: $('settings-validation-badge')
+  };
+
+  function init() {
+    SettingsManager.load();
+    const s = SettingsManager.getAll();
+    $('cfg-digit-count').value = s.digitCount;
+    $('cfg-display-time').value = s.displayTime;
+    $('cfg-min-range').value = s.minRange;
+    $('cfg-max-range').value = s.maxRange;
+    $('cfg-exclude-digits').value = s.excludeDigits;
+    $('cfg-max-attempts').value = s.maxAttempts;
+    $('cfg-history-limit').value = s.historyLimit;
+    $('cfg-major-toggle').checked = s.majorMode;
+    $('cfg-store-mapping').checked = s.storeMapping;
+    document.getElementsByName('major-dir').forEach(r => { if(r.value === s.majorDirection) r.checked = true; });
+    document.getElementsByName('encoding-strategy').forEach(r => { if(r.value === s.encodingStrategy) r.checked = true; });
+
+    const savedMap = MajorSystemEncoder.load();
+    if (savedMap) { el.mapping.value = savedMap; MajorSystemEncoder.importMapping(savedMap); }
+
+    bind(); updateMode(); renderHistory(); validateUI();
+  }
+
+  function validateUI() {
+    const errors = SettingsManager.validate();
+    const hasErrors = errors.length > 0;
+    el.errors.classList.toggle('hidden', !hasErrors);
+    el.validBadge.classList.toggle('hidden', !hasErrors);
+    if (hasErrors) {
+      el.errorList.innerHTML = errors.map(e => `<div>• ${e}</div>`).join('');
+    }
+  }
+
+  function bind() {
+    $('settings-toggle-btn').onclick = () => {
+      const open = $('settings-body').classList.toggle('open');
+      $('settings-chevron').style.transform = open ? 'rotate(180deg)' : '';
+    };
+    $('settings-header').onclick = $('settings-toggle-btn').onclick;
+    
+    const updateSetting = (key, val) => {
+      SettingsManager.set(key, val);
+      validateUI();
+    };
+
+    $('cfg-digit-count').oninput = (e) => updateSetting('digitCount', +e.target.value);
+    $('cfg-display-time').oninput = (e) => updateSetting('displayTime', +e.target.value);
+    $('cfg-min-range').oninput = (e) => updateSetting('minRange', e.target.value);
+    $('cfg-max-range').oninput = (e) => updateSetting('maxRange', e.target.value);
+    $('cfg-exclude-digits').oninput = (e) => updateSetting('excludeDigits', e.target.value);
+    $('cfg-max-attempts').oninput = (e) => updateSetting('maxAttempts', +e.target.value);
+    $('cfg-history-limit').oninput = (e) => {
+      updateSetting('historyLimit', +e.target.value);
+      renderHistory();
+    };
+
+    $('cfg-major-toggle').onchange = (e) => { SettingsManager.set('majorMode', e.target.checked); updateMode(); };
+    $('cfg-store-mapping').onchange = (e) => SettingsManager.set('storeMapping', e.target.checked);
+    document.getElementsByName('major-dir').forEach(r => r.onchange = (e) => { SettingsManager.set('majorDirection', e.target.value); updateMode(); });
+    document.getElementsByName('encoding-strategy').forEach(r => r.onchange = (e) => { SettingsManager.set('encodingStrategy', e.target.value); });
+
+    $('btn-import-mapping').onclick = () => {
+      const c = MajorSystemEncoder.importMapping(el.mapping.value);
+      el.status.textContent = c > 0 ? `✅ ${c} entries loaded` : '❌ Invalid format';
+      if (SettingsManager.get('storeMapping')) MajorSystemEncoder.save(el.mapping.value);
+    };
+    $('btn-load-demo').onclick = () => { el.mapping.value = MajorSystemEncoder.DEMO; $('btn-import-mapping').onclick(); };
+    $('btn-clear-mapping').onclick = () => { el.mapping.value = ''; MajorSystemEncoder.importMapping(''); MajorSystemEncoder.clear(); el.status.textContent = 'Cleared'; };
+
+    $('theme-btn').onclick = () => {
+      const dark = document.documentElement.classList.toggle('dark');
+      $('theme-icon').textContent = dark ? '🌙' : '☀️';
+    };
+
+    $('btn-start').onclick = () => GameController.start();
+    $('btn-skip-reveal').onclick = () => GameController.skip();
+    $('btn-continue-reveal').onclick = () => GameController.skip();
+    $('btn-submit').onclick = () => GameController.submit(el.input.value);
+    el.input.onkeydown = (e) => { if(e.key === 'Enter') $('btn-submit').click(); };
+    $('btn-new-game').onclick = () => { GameController.reset(); show('idle'); };
+    $('btn-clear-history').onclick = () => { 
+      localStorage.removeItem('nmg_history_v5'); 
+      renderHistory(); 
+    };
+  }
+
+  function show(p) { ['idle','reveal','recall','result'].forEach(x => el[x].classList.toggle('hidden', x !== p)); }
+
+  function updateMode() {
+    const s = SettingsManager.getAll();
+    if (!s.majorMode) { 
+      el.mode.textContent = '🔢 Standard Mode'; 
+      el.mode.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300'; 
+      $('encoding-strategy-container').classList.add('hidden');
+    }
+    else {
+      const dir = s.majorDirection === 'wordToNumber' ? 'Word → Number' : 'Number → Word';
+      el.mode.textContent = `🧩 Major System: ${dir}`;
+      el.mode.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300';
+      $('encoding-strategy-container').classList.remove('hidden');
+    }
+  }
+
+  function renderHistory() {
+    const s = SettingsManager.getAll();
+    if (s.historyLimit === 0) {
+      el.history.innerHTML = '<div class="text-center py-2 text-sm text-gray-400">📊 History disabled</div>';
+      return;
+    }
+    const h = JSON.parse(localStorage.getItem('nmg_history_v5') || '[]');
+    el.history.innerHTML = h.length ? h.map(x => `<div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-800"><span>${x.win?'✅':'❌'} <span class="font-code">${x.num}</span></span><span class="text-xs opacity-50">${x.date}</span></div>`).join('') : 'No games yet.';
+  }
+
+  GameController.setCallbacks({
+    onReveal: (val, time, digitCount) => {
+      el.numDisp.textContent = val;
+      
+      // Dynamic scaling
+      let fontSize = 'text-5xl sm:text-7xl';
+      let lineHeight = 'leading-[1.2]';
+      let wordBreak = 'break-normal';
+      
+      if (digitCount >= 1 && digitCount <= 6) {
+        fontSize = 'text-5xl sm:text-7xl';
+        lineHeight = 'leading-[1.2]';
+        wordBreak = 'break-normal';
+      } else if (digitCount >= 7 && digitCount <= 12) {
+        fontSize = 'text-4xl sm:text-5xl';
+        lineHeight = 'leading-[1.2]';
+        wordBreak = 'break-normal';
+      } else if (digitCount >= 13 && digitCount <= 20) {
+        fontSize = 'text-2xl sm:text-3xl';
+        lineHeight = 'leading-[1.3]';
+        wordBreak = 'break-normal';
+      } else if (digitCount >= 21 && digitCount <= 30) {
+        fontSize = 'text-xl sm:text-2xl';
+        lineHeight = 'leading-[1.4]';
+        wordBreak = 'break-all';
+      } else if (digitCount >= 31 && digitCount <= 50) {
+        fontSize = 'text-lg sm:text-xl';
+        lineHeight = 'leading-[1.5]';
+        wordBreak = 'break-all';
+      }
+      
+      el.numDisp.className = `num-reveal font-black tracking-widest font-code text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800/50 rounded-2xl py-8 px-4 mb-4 border border-gray-100 dark:border-gray-800 select-none max-w-full overflow-hidden ${fontSize} ${lineHeight} ${wordBreak}`;
+      
+      show('reveal');
+      const isInfinite = time === 0;
+      
+      $('timer-bar-container').classList.toggle('hidden', isInfinite);
+      $('btn-continue-reveal').classList.toggle('hidden', !isInfinite);
+      $('btn-skip-reveal').classList.toggle('hidden', isInfinite);
+      
+      if (isInfinite) {
+        el.countdown.textContent = '∞';
+      } else {
+        el.timerBar.style.transition = 'none'; el.timerBar.style.width = '100%';
+        setTimeout(() => { el.timerBar.style.transition = `width ${time}s linear`; el.timerBar.style.width = '0%'; }, 50);
+      }
+    },
+    onTick: (rem) => {
+      el.countdown.textContent = rem;
+    },
+    onRecall: (prompt, att) => {
+      el.prompt.textContent = prompt; 
+      el.attempts.textContent = att === Infinity ? 'Attempts: Unlimited' : `Attempts: ${att}`;
+      el.input.value = ''; el.feedback.textContent = ''; show('recall'); el.input.focus();
+    },
+    onWrong: (att) => {
+      el.attempts.textContent = att === Infinity ? 'Attempts: Unlimited' : `Attempts: ${att}`; 
+      el.feedback.textContent = '❌ Incorrect, try again';
+      el.input.classList.add('input-shake'); setTimeout(() => el.input.classList.remove('input-shake'), 400);
+    },
+    onResult: (win, num, streak) => {
+      $('result-icon').textContent = win ? '🎉' : '😔';
+      $('result-title').textContent = win ? 'Correct!' : 'Game Over';
+      $('result-number').textContent = num;
+      el.streak.textContent = streak; el.streakBox.classList.toggle('hidden', streak === 0);
+      show('result'); renderHistory();
+    },
+    onErr: (m) => {
+      alert(m);
+      if (!document.getElementById('settings-body').classList.contains('open')) {
+        document.getElementById('settings-header').click();
+      }
+    }
+  });
+
+  return { init };
+})();
+
+document.addEventListener('DOMContentLoaded', UIManager.init);
+</script>
+</body>
+</html>
