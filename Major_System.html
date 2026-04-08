@@ -111,6 +111,10 @@
                      <input type="text" id="cfg-exclude-digits" placeholder="e.g. 2,3" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
                   </div>
                   <div>
+                     <label class="block text-sm font-medium mb-1">Spacing <span class="text-xs text-gray-400">(e.g. 2;1 or 1-3)</span></label>
+                     <input type="text" id="cfg-spacing" placeholder="0 = none" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                  </div>
+                  <div>
                      <label class="block text-sm font-medium mb-1">History Limit</label>
                      <input type="number" id="cfg-history-limit" min="-1" max="500" value="10" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
                   </div>
@@ -180,7 +184,12 @@
          <section id="game-card" class="w-full rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl p-6 relative overflow-hidden">
             <div class="flex items-center justify-between mb-4">
                <div id="mode-badge" class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300">🔢 Standard Mode</div>
-               <div id="attempts-display" class="text-sm font-medium text-gray-500 dark:text-gray-400"></div>
+               <div class="flex items-center gap-3">
+                  <button id="btn-question" class="hidden p-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors text-xs font-bold flex items-center gap-1">
+                  ❓ Hint
+                  </button>
+                  <div id="attempts-display" class="text-sm font-medium text-gray-500 dark:text-gray-400"></div>
+               </div>
             </div>
             <!-- PHASE: IDLE -->
             <div id="phase-idle" class="text-center py-10">
@@ -245,6 +254,7 @@
          minRange: '',
          maxRange: '',
          excludeDigits: '',
+         spacing: '',
          historyLimit: 10,
          majorMode: false,
          storeMapping: false,
@@ -270,6 +280,73 @@
          function saveSettings() {
          localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
          }
+         
+         const Formatter = {
+           applySpacing(num, pattern) {
+             if (!pattern || pattern === '0' || pattern.trim() === '') return num;
+             
+             const parts = pattern.split(/[;,]/);
+             let result = [];
+             let remaining = num;
+             
+             for (const part of parts) {
+               if (remaining.length === 0) break;
+               const p = part.trim();
+               if (p === '') continue;
+               
+               if (p.includes('-')) {
+                 const rangeParts = p.split('-');
+                 const min = parseInt(rangeParts[0]);
+                 const max = parseInt(rangeParts[1]);
+                 if (!isNaN(min) && !isNaN(max)) {
+                   const start = Math.min(min, max);
+                   const end = Math.max(min, max);
+                   while (remaining.length >= start) {
+                     const take = Math.min(remaining.length, end);
+                     result.push(remaining.substring(0, take));
+                     remaining = remaining.substring(take);
+                   }
+                 }
+               } else {
+                 const n = parseInt(p);
+                 if (!isNaN(n) && n > 0) {
+                   while (remaining.length >= n) {
+                     result.push(remaining.substring(0, n));
+                     remaining = remaining.substring(n);
+                   }
+                 }
+               }
+             }
+             
+             if (remaining.length > 0) {
+               result.push(remaining);
+             }
+             
+             return result.join(' ');
+           },
+           
+           validateSpacing(pattern) {
+             if (!pattern || pattern === '0' || pattern.trim() === '') return true;
+             if (!/^[0-9;,\-]+$/.test(pattern)) return false;
+             
+             const parts = pattern.split(/[;,]/);
+             for (const p of parts) {
+               const trimmed = p.trim();
+               if (trimmed === '') continue;
+               if (trimmed.includes('-')) {
+                 const rangeParts = trimmed.split('-');
+                 if (rangeParts.length !== 2) return false;
+                 const s = parseInt(rangeParts[0]);
+                 const e = parseInt(rangeParts[1]);
+                 if (isNaN(s) || isNaN(e) || s < 0 || e < 0 || s > 50 || e > 50) return false;
+               } else {
+                 const n = parseInt(trimmed);
+                 if (isNaN(n) || n < 0 || n > 50) return false;
+               }
+             }
+             return true;
+           }
+         };
          
          const MajorSystem = {
          wordToDigits: new Map(),
@@ -404,6 +481,7 @@
          attempts: 0,
          streak: 0,
          timer: null,
+         hintUsed: false,
          
          $(id) {
          return document.getElementById(id);
@@ -414,6 +492,7 @@
          this.syncInputs();
          this.bindEvents();
          this.renderHistory();
+         this.validateSettings();
          
          const savedMap = localStorage.getItem(MAPPING_KEY);
          const mappingArea = this.$('cfg-major-mapping');
@@ -436,6 +515,7 @@
          'cfg-min-range': settings.minRange,
          'cfg-max-range': settings.maxRange,
          'cfg-exclude-digits': settings.excludeDigits,
+         'cfg-spacing': settings.spacing,
          'cfg-max-attempts': settings.maxAttempts,
          'cfg-history-limit': settings.historyLimit,
          'cfg-include-digits': settings.includeDigitsTo,
@@ -479,6 +559,20 @@
          }
          },
          
+         validateSettings() {
+           const spacingValid = Formatter.validateSpacing(settings.spacing);
+           const badge = this.$('settings-validation-badge');
+           if (badge) {
+             badge.classList.toggle('hidden', spacingValid);
+           }
+           const spacingInput = this.$('cfg-spacing');
+           if (spacingInput) {
+             spacingInput.classList.toggle('border-red-500', !spacingValid);
+             spacingInput.classList.toggle('dark:border-red-900', !spacingValid);
+           }
+           return spacingValid;
+         },
+         
          bindEvents() {
          const settingsToggle = this.$('settings-toggle-btn');
          const settingsHeader = this.$('settings-header');
@@ -500,6 +594,7 @@
          ['cfg-min-range', 'minRange', 'str'],
          ['cfg-max-range', 'maxRange', 'str'],
          ['cfg-exclude-digits', 'excludeDigits', 'str'],
+         ['cfg-spacing', 'spacing', 'str'],
          ['cfg-max-attempts', 'maxAttempts', 'int'],
          ['cfg-history-limit', 'historyLimit', 'int'],
          ['cfg-include-digits', 'includeDigitsTo', 'str'],
@@ -522,6 +617,7 @@
          settings[key] = val;
          saveSettings();
          this.updateVisibility();
+         this.validateSettings();
          };
          }
          });
@@ -603,6 +699,25 @@
          recallInput.onkeydown = (e) => { if(e.key === 'Enter') this.submitAnswer(); };
          }
          
+         const questionBtn = this.$('btn-question');
+         if (questionBtn) {
+         questionBtn.onclick = () => {
+         this.hintUsed = true;
+         const prompt = this.$('recall-prompt');
+         if (!prompt) return;
+         
+         if (settings.majorMode) {
+         if (settings.majorDirection === 'numberToWord') {
+         prompt.textContent = `The number was: ${this.currentNum}`;
+         } else {
+         prompt.textContent = `The word was: ${this.encoded.join(' ')}`;
+         }
+         } else {
+         prompt.textContent = `The number was: ${this.currentNum}`;
+         }
+         };
+         }
+         
          const newGameBtn = this.$('btn-new-game');
          if (newGameBtn) newGameBtn.onclick = () => this.resetToIdle();
          
@@ -635,7 +750,7 @@
          this.attempts = settings.maxAttempts === -1 ? Infinity : (settings.maxAttempts === 0 ? 1 : settings.maxAttempts);
          this.showPhase('reveal');
          
-         const display = (settings.majorMode && settings.majorDirection === 'wordToNumber') ? this.encoded.join(' ') : this.currentNum;
+         const display = (settings.majorMode && settings.majorDirection === 'wordToNumber') ? this.encoded.join(' ') : Formatter.applySpacing(this.currentNum, settings.spacing);
          const numDisplay = this.$('number-display');
          if (numDisplay) {
          numDisplay.textContent = display;
@@ -648,9 +763,8 @@
          }
          
          if (settings.displayTime > 0) {
-         let rem = settings.displayTime;
          const countdown = this.$('countdown-display');
-         if (countdown) countdown.textContent = rem;
+         if (countdown) countdown.textContent = settings.displayTime;
          
          const bar = this.$('timer-bar-fill');
          if (bar) {
@@ -663,12 +777,16 @@
          }
          
          if (this.timer) clearInterval(this.timer);
+         const startTime = Date.now();
+         const endTime = startTime + (settings.displayTime * 1000);
+         
          this.timer = setInterval(() => {
-         rem = Math.max(0, (rem - 1).toFixed(0));
+         const now = Date.now();
+         const remaining = Math.max(0, (endTime - now) / 1000);
          const cd = this.$('countdown-display');
-         if (cd) cd.textContent = rem;
-         if (rem <= 0) this.beginRecall();
-         }, 1000);
+         if (cd) cd.textContent = settings.displayTime < 1 ? remaining.toFixed(1) : Math.ceil(remaining);
+         if (now >= endTime) this.beginRecall();
+         }, 50);
          
          const timerContainer = this.$('timer-bar-container');
          if (timerContainer) timerContainer.classList.remove('hidden');
@@ -696,6 +814,7 @@
          clearInterval(this.timer);
          this.timer = null;
          }
+         this.hintUsed = false;
          this.showPhase('recall');
          const input = this.$('recall-input');
          if (input) {
@@ -709,7 +828,13 @@
          if (attemptsDisp) attemptsDisp.textContent = this.attempts === Infinity ? 'Attempts: ∞' : `Attempts: ${this.attempts}`;
          
          const prompt = this.$('recall-prompt');
-         if (prompt) prompt.textContent = (settings.majorMode && settings.majorDirection === 'numberToWord') ? `Enter words for: ${this.currentNum}` : 'What was the number?';
+         if (prompt) {
+         if (settings.majorMode && settings.majorDirection === 'numberToWord') {
+         prompt.textContent = 'Enter the words...';
+         } else {
+         prompt.textContent = 'What was the number?';
+         }
+         }
          },
          
          submitAnswer() {
@@ -725,7 +850,9 @@
          }
          
          if (correct) {
+         if (!this.hintUsed) {
          this.streak++;
+         }
          this.resolveGame(true);
          } else {
          if (this.attempts !== Infinity) {
@@ -755,7 +882,7 @@
          const title = this.$('result-title');
          if (title) title.textContent = win ? 'Correct!' : 'Game Over';
          const num = this.$('result-number');
-         if (num) num.textContent = this.currentNum;
+         if (num) num.textContent = Formatter.applySpacing(this.currentNum, settings.spacing);
          
          const majorEl = this.$('result-major');
          if (majorEl) {
@@ -774,11 +901,12 @@
          
          if (settings.historyLimit !== 0) {
          const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-         let display = this.currentNum;
+         const formattedNum = Formatter.applySpacing(this.currentNum, settings.spacing);
+         let display = formattedNum;
          if (settings.majorMode) {
-         display = settings.majorDirection === 'wordToNumber' ? `${this.encoded.join(' ')} → ${this.currentNum}` : `${this.currentNum} → ${this.encoded.join(' ')}`;
+         display = settings.majorDirection === 'wordToNumber' ? `${this.encoded.join(' ')} → ${formattedNum}` : `${formattedNum} → ${this.encoded.join(' ')}`;
          }
-         history.unshift({ num: display, win, date: new Date().toLocaleTimeString() });
+         history.unshift({ num: display, win, hintUsed: this.hintUsed, date: new Date().toLocaleTimeString() });
          const final = settings.historyLimit === -1 ? history : history.slice(0, settings.historyLimit);
          localStorage.setItem(HISTORY_KEY, JSON.stringify(final));
          this.renderHistory();
@@ -799,6 +927,10 @@
          const el = this.$(`phase-${x}`);
          if (el) el.classList.toggle('hidden', x !== p);
          });
+         
+         const questionBtn = this.$('btn-question');
+         if (questionBtn) questionBtn.classList.toggle('hidden', p !== 'recall');
+         
          if (p === 'idle' || p === 'result') {
          const attemptsDisp = this.$('attempts-display');
          if (attemptsDisp) attemptsDisp.textContent = '';
@@ -819,7 +951,10 @@
          ${x.win ? '<span class="text-green-500">✅</span>' : '<span class="text-red-500">❌</span>'}
          <span class="font-code">${x.num}</span>
          </span>
+         <div class="flex items-center gap-2">
+         ${x.hintUsed ? '<span class="text-[10px] font-bold text-amber-500 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">Tipp benötigt</span>' : ''}
          <span class="text-xs opacity-50 tabular-nums">${x.date}</span>
+         </div>
          </div>
          `).join('');
          }
