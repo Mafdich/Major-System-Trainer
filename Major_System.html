@@ -35,8 +35,9 @@
          body { transition: background-color 0.3s, color 0.3s; font-family: 'Inter', system-ui, sans-serif; }
          #timer-bar-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899); border-radius: 9999px; transition: width linear; }
          .num-reveal { animation: fadeIn 0.3s ease-out; }
-         #settings-body { max-height: 0; overflow: hidden; transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-         #settings-body.open { max-height: 2000px; }
+         #settings-body, #modes-body { overflow: hidden; transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+         #settings-body.open, #modes-body.open { max-height: 2000px; }
+         #settings-body:not(.open), #modes-body:not(.open) { max-height: 0; }
          .toggle-label { position: relative; display: inline-block; width: 44px; height: 22px; }
          .toggle-label input { opacity: 0; width: 0; height: 0; }
          .toggle-slider { position: absolute; inset: 0; background: #4b5563; border-radius: 9999px; cursor: pointer; transition: background 0.2s; }
@@ -46,6 +47,8 @@
          .font-code { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
          input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
          .animate-shake { animation: shake 0.4s ease-in-out; }
+         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+         .scrollbar-hide::-webkit-scrollbar { display: none; }
       </style>
    </head>
    <body class="bg-gray-100 dark:bg-gray-950 text-gray-800 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-300">
@@ -77,113 +80,191 @@
                </div>
                <span id="settings-chevron" class="text-gray-400 transition-transform duration-300">▼</span>
             </div>
-            <div id="settings-body">
-               <div class="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 border-t border-gray-100 dark:border-gray-800 pt-4">
-                  <div class="sm:col-span-2">
-                     <h3 class="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-indigo-400 mb-1">🔢 Number Configuration</h3>
+            <div id="settings-body" class="open">
+               <div class="px-5 pb-5 border-t border-gray-100 dark:border-gray-800 pt-4">
+                  <!-- Number Configuration Group (immer sichtbar) -->
+                  <div id="settings-number-group" class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                    <div class="sm:col-span-2">
+                       <h3 class="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-indigo-400 mb-1">🔢 Number Configuration</h3>
+                    </div>
+                    <div>
+                       <label class="block text-sm font-medium mb-1">Digit Count (1-50)</label>
+                       <input type="number" id="cfg-digit-count" min="1" max="50" value="2" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                       <label class="block text-sm font-medium mb-1">Include Digits To <span class="text-xs text-gray-400">(e.g. 1-5, 8)</span></label>
+                       <input type="text" id="cfg-include-digits" placeholder="Empty = only Digit Count" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                       <label class="block text-sm font-medium mb-1">Display Time (s) <span class="text-xs text-gray-400">(0 = infinite)</span></label>
+                       <input type="number" id="cfg-display-time" min="0" max="500" step="0.1" value="10" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                       <label class="block text-sm font-medium mb-1">Max Attempts <span class="text-xs text-gray-400">(-1 = unlimited)</span></label>
+                       <input type="number" id="cfg-max-attempts" min="-1" max="100" value="3" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                       <label class="block text-sm font-medium mb-1">Min Value</label>
+                       <input type="number" id="cfg-min-range" placeholder="auto" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                       <label class="block text-sm font-medium mb-1">Max Value</label>
+                       <input type="number" id="cfg-max-range" placeholder="auto" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                       <label class="block text-sm font-medium mb-1">Exclude Digits <span class="text-xs text-gray-400">(e.g. 2,3)</span></label>
+                       <input type="text" id="cfg-exclude-digits" placeholder="e.g. 2,3" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                       <label class="block text-sm font-medium mb-1">Spacing <span class="text-xs text-gray-400">(e.g. 2;1 or 1-3)</span></label>
+                       <input type="text" id="cfg-spacing" placeholder="0 = none" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                       <label class="block text-sm font-medium mb-1">History Limit</label>
+                       <input type="number" id="cfg-history-limit" min="-1" max="500" value="10" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div class="sm:col-span-2 space-y-3 pt-2">
+                       <div class="flex items-center gap-3">
+                          <label class="toggle-label"><input type="checkbox" id="cfg-allow-zeros"><span class="toggle-slider"></span></label>
+                          <div>
+                             <div class="text-sm font-medium">Allow Leading Zeros</div>
+                             <div class="text-xs text-gray-400">Numbers can start with 0 (e.g. 009)</div>
+                          </div>
+                       </div>
+                       <div id="force-zeros-container" class="hidden flex items-center gap-6 pl-10">
+                          <div class="flex items-center gap-3">
+                             <label class="toggle-label"><input type="checkbox" id="cfg-force-zeros"><span class="toggle-slider"></span></label>
+                             <div class="text-sm font-medium">Force Format:</div>
+                          </div>
+                          <input type="text" id="cfg-force-zeros-format" placeholder="e.g. 00" class="flex-1 px-3 py-1 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                       </div>
+                    </div>
                   </div>
-                  <div>
-                     <label class="block text-sm font-medium mb-1">Digit Count (1-50)</label>
-                     <input type="number" id="cfg-digit-count" min="1" max="50" value="4" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+
+                  <!-- Major System Group (nun auch für Counting Mode sichtbar) -->
+                  <div id="settings-major-group" class="hidden mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                      <div class="sm:col-span-2">
+                         <h3 class="text-xs font-bold uppercase tracking-widest text-purple-500 dark:text-purple-400 mb-1">🧩 Major System Mode</h3>
+                      </div>
+                      <div class="flex items-center gap-3">
+                         <label class="toggle-label"><input type="checkbox" id="cfg-store-mapping"><span class="toggle-slider"></span></label>
+                         <div>
+                            <div class="text-sm font-medium">Remember Mapping</div>
+                            <div class="text-xs text-gray-400">Persist in localStorage</div>
+                         </div>
+                      </div>
+                      <div class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                         <div>
+                            <label class="text-sm font-medium block mb-2">Game Direction</label>
+                            <div class="flex gap-4">
+                               <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="major-dir" value="wordToNumber" checked class="accent-purple-500"> Word → Num</label>
+                               <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="major-dir" value="numberToWord" class="accent-purple-500"> Num → Word</label>
+                            </div>
+                         </div>
+                         <div>
+                            <label class="text-sm font-medium block mb-2">Encoding Strategy</label>
+                            <div class="flex gap-4">
+                               <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="encoding-strategy" value="longest" checked class="accent-purple-500"> Longest</label>
+                               <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="encoding-strategy" value="shortest" class="accent-purple-500"> Shortest</label>
+                            </div>
+                         </div>
+                         <div class="sm:col-span-2">
+                            <label class="block text-sm font-medium mb-1">Major System Mapping <span class="text-gray-400 font-normal text-xs">(Word = digits)</span></label>
+                            <textarea id="cfg-major-mapping" rows="4" placeholder="Soße = 0&#10;Seide = 1&#10;..." class="w-full px-3 py-2 rounded-lg text-sm font-code bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-purple-500 outline-none resize-none"></textarea>
+                            <div class="flex flex-wrap gap-2 mt-2">
+                               <button id="btn-import-mapping" class="px-4 py-1.5 text-sm rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium transition">Import</button>
+                               <button id="btn-load-demo" class="px-4 py-1.5 text-sm rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition">Load Demo</button>
+                               <button id="btn-clear-mapping" class="px-4 py-1.5 text-sm rounded-lg bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 transition">Clear</button>
+                            </div>
+                            <div id="mapping-status" class="mt-2 text-xs font-medium text-purple-400"></div>
+                         </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                     <label class="block text-sm font-medium mb-1">Include Digits To <span class="text-xs text-gray-400">(e.g. 1-5, 8)</span></label>
-                     <input type="text" id="cfg-include-digits" placeholder="Empty = only Digit Count" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
-                  </div>
-                  <div>
-                     <label class="block text-sm font-medium mb-1">Display Time (s) <span class="text-xs text-gray-400">(0 = infinite)</span></label>
-                     <input type="number" id="cfg-display-time" min="0" max="500" step="0.1" value="10" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
-                  </div>
-                  <div>
-                     <label class="block text-sm font-medium mb-1">Max Attempts <span class="text-xs text-gray-400">(-1 = unlimited)</span></label>
-                     <input type="number" id="cfg-max-attempts" min="-1" max="100" value="3" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
-                  </div>
-                  <div>
-                     <label class="block text-sm font-medium mb-1">Min Value</label>
-                     <input type="number" id="cfg-min-range" placeholder="auto" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
-                  </div>
-                  <div>
-                     <label class="block text-sm font-medium mb-1">Max Value</label>
-                     <input type="number" id="cfg-max-range" placeholder="auto" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
-                  </div>
-                  <div>
-                     <label class="block text-sm font-medium mb-1">Exclude Digits <span class="text-xs text-gray-400">(e.g. 2,3)</span></label>
-                     <input type="text" id="cfg-exclude-digits" placeholder="e.g. 2,3" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
-                  </div>
-                  <div>
-                     <label class="block text-sm font-medium mb-1">Spacing <span class="text-xs text-gray-400">(e.g. 2;1 or 1-3)</span></label>
-                     <input type="text" id="cfg-spacing" placeholder="0 = none" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
-                  </div>
-                  <div>
-                     <label class="block text-sm font-medium mb-1">History Limit</label>
-                     <input type="number" id="cfg-history-limit" min="-1" max="500" value="10" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
-                  </div>
-                  <div class="sm:col-span-2 space-y-3 pt-2">
-                     <div class="flex items-center gap-3">
-                        <label class="toggle-label"><input type="checkbox" id="cfg-allow-zeros"><span class="toggle-slider"></span></label>
-                        <div>
-                           <div class="text-sm font-medium">Allow Leading Zeros</div>
-                           <div class="text-xs text-gray-400">Numbers can start with 0 (e.g. 009)</div>
-                        </div>
-                     </div>
-                     <div id="force-zeros-container" class="hidden flex items-center gap-6 pl-10">
-                        <div class="flex items-center gap-3">
-                           <label class="toggle-label"><input type="checkbox" id="cfg-force-zeros"><span class="toggle-slider"></span></label>
-                           <div class="text-sm font-medium">Force Format:</div>
-                        </div>
-                        <input type="text" id="cfg-force-zeros-format" placeholder="e.g. 00" class="flex-1 px-3 py-1 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
-                     </div>
-                  </div>
-                  <div class="sm:col-span-2 mt-2">
-                     <h3 class="text-xs font-bold uppercase tracking-widest text-purple-500 dark:text-purple-400 mb-1">🧩 Major System Mode</h3>
-                  </div>
-                  <div class="flex items-center gap-3">
-                     <label class="toggle-label"><input type="checkbox" id="cfg-major-toggle"><span class="toggle-slider"></span></label>
-                     <div>
-                        <div class="text-sm font-medium">Major System Mode</div>
-                        <div class="text-xs text-gray-400">Encode numbers as words</div>
-                     </div>
-                  </div>
-                  <div class="flex items-center gap-3">
-                     <label class="toggle-label"><input type="checkbox" id="cfg-store-mapping"><span class="toggle-slider"></span></label>
-                     <div>
-                        <div class="text-sm font-medium">Remember Mapping</div>
-                        <div class="text-xs text-gray-400">Persist in localStorage</div>
-                     </div>
-                  </div>
-                  <div id="major-options" class="sm:col-span-2 hidden grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-                     <div>
-                        <label class="text-sm font-medium block mb-2">Game Direction</label>
-                        <div class="flex gap-4">
-                           <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="major-dir" value="wordToNumber" checked class="accent-purple-500"> Word → Num</label>
-                           <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="major-dir" value="numberToWord" class="accent-purple-500"> Num → Word</label>
-                        </div>
-                     </div>
-                     <div>
-                        <label class="text-sm font-medium block mb-2">Encoding Strategy</label>
-                        <div class="flex gap-4">
-                           <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="encoding-strategy" value="longest" checked class="accent-purple-500"> Longest</label>
-                           <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="encoding-strategy" value="shortest" class="accent-purple-500"> Shortest</label>
-                        </div>
-                     </div>
-                     <div class="sm:col-span-2">
-                        <label class="block text-sm font-medium mb-1">Major System Mapping <span class="text-gray-400 font-normal text-xs">(Word = digits)</span></label>
-                        <textarea id="cfg-major-mapping" rows="4" placeholder="Tie = 1&#10;Noah = 2" class="w-full px-3 py-2 rounded-lg text-sm font-code bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-purple-500 outline-none resize-none"></textarea>
-                        <div class="flex flex-wrap gap-2 mt-2">
-                           <button id="btn-import-mapping" class="px-4 py-1.5 text-sm rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium transition">Import</button>
-                           <button id="btn-load-demo" class="px-4 py-1.5 text-sm rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition">Load Demo</button>
-                           <button id="btn-clear-mapping" class="px-4 py-1.5 text-sm rounded-lg bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 transition">Clear</button>
-                        </div>
-                        <div id="mapping-status" class="mt-2 text-xs font-medium text-purple-400"></div>
-                     </div>
+
+                  <!-- Counting Mode Group (nur für Counting Mode sichtbar) -->
+                  <div id="settings-counting-group" class="hidden mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                      <div class="sm:col-span-2">
+                         <h3 class="text-xs font-bold uppercase tracking-widest text-emerald-500 dark:text-emerald-400 mb-1">🔄 Counting Mode Settings</h3>
+                      </div>
+                      <div>
+                         <label class="block text-sm font-medium mb-1">Start Number</label>
+                         <input type="number" id="cfg-count-start" value="0" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 outline-none">
+                      </div>
+                      <div>
+                         <label class="block text-sm font-medium mb-1">End Number</label>
+                         <input type="number" id="cfg-count-end" value="99" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 outline-none">
+                      </div>
+                      <div>
+                         <label class="block text-sm font-medium mb-1">Count Start Number <span class="text-xs text-gray-400">(empty = use Start Number)</span></label>
+                         <input type="number" id="cfg-count-start-num" placeholder="auto" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 outline-none">
+                      </div>
+                      <div>
+                         <label class="block text-sm font-medium mb-1">Count +/- <span class="text-xs text-gray-400">(e.g. 1+, 1-, 1+-, 2+-)</span></label>
+                         <input type="text" id="cfg-count-operator" value="1+" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 outline-none">
+                      </div>
+                      <div>
+                         <label class="block text-sm font-medium mb-1">Switch To</label>
+                         <select id="cfg-count-switch" class="w-full px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 outline-none">
+                           <option value="auto">Auto (to other end)</option>
+                           <option value="start">Start</option>
+                           <option value="end">End</option>
+                         </select>
+                      </div>
+                      <div class="flex items-center gap-3">
+                         <label class="toggle-label"><input type="checkbox" id="cfg-count-hidden"><span class="toggle-slider"></span></label>
+                         <div>
+                            <div class="text-sm font-medium">Hide Current Value</div>
+                            <div class="text-xs text-gray-400">Only show range, not the current number</div>
+                         </div>
+                      </div>
+                    </div>
                   </div>
                </div>
             </div>
          </section>
+
+         <!-- GAME MODES PANEL -->
+         <section id="modes-panel" class="w-full rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden">
+           <div id="modes-header" class="flex items-center justify-between px-5 py-4 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+             <div class="flex items-center gap-2">
+               <span class="text-lg">🎮</span>
+               <span class="font-semibold text-base">Game Modes</span>
+             </div>
+             <span id="modes-chevron" class="text-gray-400 transition-transform duration-300">▼</span>
+           </div>
+           
+           <div id="modes-body" class="border-t border-gray-100 dark:border-gray-800 open">
+             <div class="relative p-4">
+               <button id="modes-scroll-left" class="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white/80 dark:bg-gray-800/80 rounded-full p-1.5 shadow-md hidden transition hover:bg-gray-100 dark:hover:bg-gray-700">
+                 ◀
+               </button>
+               
+               <div id="modes-tabs-container" class="flex overflow-x-auto scrollbar-hide gap-2 px-6 py-2" style="scroll-behavior: smooth;">
+                 <button class="mode-tab px-4 py-2 text-sm font-medium rounded-lg transition whitespace-nowrap data-[active=true]:bg-indigo-100 dark:data-[active=true]:bg-indigo-900/50 data-[active=true]:text-indigo-700 dark:data-[active=true]:text-indigo-300 hover:bg-gray-100 dark:hover:bg-gray-800" data-mode="standard">
+                   📖 Standard Mode
+                 </button>
+                 <button class="mode-tab px-4 py-2 text-sm font-medium rounded-lg transition whitespace-nowrap data-[active=true]:bg-purple-100 dark:data-[active=true]:bg-purple-900/50 data-[active=true]:text-purple-700 dark:data-[active=true]:text-purple-300 hover:bg-gray-100 dark:hover:bg-gray-800" data-mode="major">
+                   🧩 Major System Mode
+                 </button>
+                 <button class="mode-tab px-4 py-2 text-sm font-medium rounded-lg transition whitespace-nowrap data-[active=true]:bg-emerald-100 dark:data-[active=true]:bg-emerald-900/50 data-[active=true]:text-emerald-700 dark:data-[active=true]:text-emerald-300 hover:bg-gray-100 dark:hover:bg-gray-800" data-mode="counting">
+                   🔄 Counting Mode
+                 </button>
+               </div>
+               
+               <button id="modes-scroll-right" class="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white/80 dark:bg-gray-800/80 rounded-full p-1.5 shadow-md hidden transition hover:bg-gray-100 dark:hover:bg-gray-700">
+                 ▶
+               </button>
+             </div>
+           </div>
+         </section>
+
          <!-- GAME CARD -->
          <section id="game-card" class="w-full rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl p-6 relative overflow-hidden">
             <div class="flex items-center justify-between mb-4">
-               <div id="mode-badge" class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300">🔢 Standard Mode</div>
+               <div id="mode-badge" class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300">📖 Standard Mode</div>
                <div class="flex items-center gap-3">
                   <button id="btn-question" class="hidden p-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors text-xs font-bold flex items-center gap-1">
                   ❓ Hint
@@ -197,7 +278,7 @@
                <h2 class="text-2xl font-bold mb-6">Ready to Test Your Memory?</h2>
                <button id="btn-start" class="px-8 py-3 rounded-xl text-lg font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/30 transition hover:scale-105 active:scale-95">🚀 Start Game</button>
             </div>
-            <!-- PHASE: REVEAL -->
+            <!-- PHASE: REVEAL (wird im Counting Mode nicht verwendet, aber für Standard/Major bleibt) -->
             <div id="phase-reveal" class="hidden text-center">
                <p class="text-xs uppercase tracking-widest text-gray-400 mb-1">Memorize this!</p>
                <div id="timer-bar-container" class="relative h-2 rounded-full bg-gray-200 dark:bg-gray-700 mb-6 overflow-hidden">
@@ -243,12 +324,116 @@
          </section>
       </main>
       <script>
-         const STORAGE_KEY = 'nmg_settings_v9';
-         const HISTORY_KEY = 'nmg_history_v9';
-         const MAPPING_KEY = 'nmg_major_mapping_v7';
+         // ============================================================
+         // DEMO-MAPPING (0-99) – jedes Wort exakt einer Zahl zugeordnet
+         // ============================================================
+         const DEMO_MAPPING = `Soße = 0
+Seide = 1
+Sahne = 2
+Sumo = 3
+Säure = 4
+Säule = 5
+Sushi = 6
+Socke = 7
+Seife = 8
+Suppe = 9
+Tasse = 10
+Tod = 11
+Tanne = 12
+Teer = 13
+Tal = 14
+Dom = 15
+Tasche = 16
+Theke = 17
+TÜV = 18
+Taube = 19
+Nase = 20
+Note = 21
+Nonne = 22
+Nemo = 23
+Nero = 24
+Nil = 25
+Nische = 26
+Nike = 27
+Nivea = 28
+Neubau = 29
+Maus = 30
+Motte = 31
+Mohn = 32
+Mama = 33
+Meer = 34
+Mehl = 35
+Muschel = 36
+Mücke = 37
+Mofa = 38
+Mopp = 39
+Benzin = 40
+Rose = 41
+Radio = 42
+Ramen = 43
+Rohr = 44
+Roller = 45
+Rauch = 46
+Rock = 47
+Reifen = 48
+Rabe = 49
+Lasso = 50
+Latte = 51
+Linie = 52
+Lama = 53
+Leier = 54
+Lilie = 55
+Loch = 56
+Lok = 57
+Lava = 58
+Lupe = 59
+Lack = 60
+Schotte = 61
+Scheune = 62
+Schaum = 63
+Schere = 64
+Schal = 65
+Schachbrett = 66
+Scheck = 67
+Schaf = 68
+Scheibe = 69
+Käse = 70
+Kette = 71
+Kinn = 72
+Kamm = 73
+Karre = 74
+Kohle = 75
+Koch = 76
+Geige = 77
+Kaffee = 78
+Kappe = 79
+Fass = 80
+Foto = 81
+Fahne = 82
+Wumme = 83
+Feuer = 84
+Fell = 85
+Fisch = 86
+Waage = 87
+VW = 88
+Wabe = 89
+Bus = 90
+Bett = 91
+Bahn = 92
+Baum = 93
+Bär = 94
+Ball = 95
+Buch = 96
+Pauke = 97
+Pfau = 98
+Papa = 99`;
+         
+         const STORAGE_KEY = 'nmg_settings_v16';
+         const HISTORY_KEY = 'nmg_history_v16';
+         const MAPPING_KEY = 'nmg_major_mapping_v14';
          
          const DEFAULTS = {
-         digitCount: 4,
+         digitCount: 2,
          displayTime: 10,
          maxAttempts: 3,
          minRange: '',
@@ -256,14 +441,20 @@
          excludeDigits: '',
          spacing: '',
          historyLimit: 10,
-         majorMode: false,
-         storeMapping: false,
+         currentMode: 'counting',
+         storeMapping: true,
          majorDirection: 'wordToNumber',
          encodingStrategy: 'longest',
          includeDigitsTo: '',
          allowLeadingZeros: false,
          forceLeadingZeros: false,
-         forceLeadingZerosFormat: ''
+         forceLeadingZerosFormat: '',
+         countStart: 0,
+         countEnd: 99,
+         countStartNum: '',
+         countOperator: '1+',
+         countSwitch: 'auto',
+         countHideValue: false
          };
          
          let settings = { ...DEFAULTS };
@@ -482,6 +673,9 @@
          streak: 0,
          timer: null,
          hintUsed: false,
+         countingSequence: [],
+         countingIndex: 0,
+         countingAnswerTimer: null,
          
          $(id) {
          return document.getElementById(id);
@@ -494,11 +688,15 @@
          this.renderHistory();
          this.validateSettings();
          
-         const savedMap = localStorage.getItem(MAPPING_KEY);
+         let savedMap = localStorage.getItem(MAPPING_KEY);
+         if (!savedMap) {
+           savedMap = DEMO_MAPPING;
+           localStorage.setItem(MAPPING_KEY, savedMap);
+         }
          const mappingArea = this.$('cfg-major-mapping');
          if (savedMap && mappingArea) {
-         mappingArea.value = savedMap;
-         MajorSystem.importMapping(savedMap);
+           mappingArea.value = savedMap;
+           MajorSystem.importMapping(savedMap);
          }
          
          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
@@ -506,6 +704,8 @@
          const themeIcon = this.$('theme-icon');
          if (themeIcon) themeIcon.textContent = '🌙';
          }
+
+         this.checkScrollButtons();
          },
          
          syncInputs() {
@@ -519,7 +719,12 @@
          'cfg-max-attempts': settings.maxAttempts,
          'cfg-history-limit': settings.historyLimit,
          'cfg-include-digits': settings.includeDigitsTo,
-         'cfg-force-zeros-format': settings.forceLeadingZerosFormat
+         'cfg-force-zeros-format': settings.forceLeadingZerosFormat,
+         'cfg-count-start': settings.countStart,
+         'cfg-count-end': settings.countEnd,
+         'cfg-count-start-num': settings.countStartNum,
+         'cfg-count-operator': settings.countOperator,
+         'cfg-count-switch': settings.countSwitch
          };
          
          for (const [id, val] of Object.entries(map)) {
@@ -528,10 +733,10 @@
          }
          
          const checks = {
-         'cfg-major-toggle': settings.majorMode,
          'cfg-store-mapping': settings.storeMapping,
          'cfg-allow-zeros': settings.allowLeadingZeros,
-         'cfg-force-zeros': settings.forceLeadingZeros
+         'cfg-force-zeros': settings.forceLeadingZeros,
+         'cfg-count-hidden': settings.countHideValue
          };
          
          for (const [id, val] of Object.entries(checks)) {
@@ -543,20 +748,51 @@
          document.getElementsByName('encoding-strategy').forEach(r => { if(r.value === settings.encodingStrategy) r.checked = true; });
          
          this.updateVisibility();
+         this.updateTabState();
+         },
+         
+         updateTabState() {
+           document.querySelectorAll('.mode-tab').forEach(tab => {
+             tab.setAttribute('data-active', tab.dataset.mode === settings.currentMode);
+           });
          },
          
          updateVisibility() {
-         const majorOpt = this.$('major-options');
-         if (majorOpt) majorOpt.classList.toggle('hidden', !settings.majorMode);
+         const majorGroup = this.$('settings-major-group');
+         const countingGroup = this.$('settings-counting-group');
+         if (majorGroup) majorGroup.classList.toggle('hidden', settings.currentMode !== 'major' && settings.currentMode !== 'counting');
+         if (countingGroup) countingGroup.classList.toggle('hidden', settings.currentMode !== 'counting');
          
          const forceContainer = this.$('force-zeros-container');
          if (forceContainer) forceContainer.classList.toggle('hidden', !settings.allowLeadingZeros);
          
-         const modeBadge = this.$('mode-badge');
-         if (modeBadge) {
-         modeBadge.textContent = settings.majorMode ? '🧩 Major Mode' : '🔢 Standard Mode';
-         modeBadge.className = `inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full ${settings.majorMode ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300' : 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300'}`;
-         }
+         this.updateModeBadge();
+         },
+         
+         updateModeBadge() {
+           const modeBadge = this.$('mode-badge');
+           if (!modeBadge) return;
+           
+           const mode = settings.currentMode || 'standard';
+           
+           if (mode === 'standard') {
+             modeBadge.textContent = '📖 Standard Mode';
+             modeBadge.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300';
+           } else if (mode === 'major') {
+             modeBadge.textContent = '🧩 Major System Mode';
+             modeBadge.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300';
+           } else if (mode === 'counting') {
+             modeBadge.textContent = '🔄 Counting Mode';
+             modeBadge.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300';
+           }
+         },
+         
+         switchMode(mode) {
+           settings.currentMode = mode;
+           saveSettings();
+           this.updateTabState();
+           this.updateVisibility();
+           this.resetToIdle();
          },
          
          validateSettings() {
@@ -588,6 +824,39 @@
          }
          if (settingsHeader && settingsToggle) settingsHeader.onclick = settingsToggle.onclick;
          
+         const modesHeader = this.$('modes-header');
+         if (modesHeader) {
+           modesHeader.onclick = () => {
+             const body = this.$('modes-body');
+             if (!body) return;
+             const open = body.classList.toggle('open');
+             const chevron = this.$('modes-chevron');
+             if (chevron) chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+           };
+         }
+         
+         document.querySelectorAll('.mode-tab').forEach(tab => {
+           tab.onclick = () => this.switchMode(tab.dataset.mode);
+         });
+         
+         const tabsContainer = this.$('modes-tabs-container');
+         const scrollLeftBtn = this.$('modes-scroll-left');
+         const scrollRightBtn = this.$('modes-scroll-right');
+         
+         if (scrollLeftBtn) scrollLeftBtn.onclick = () => tabsContainer.scrollBy({ left: -200, behavior: 'smooth' });
+         if (scrollRightBtn) scrollRightBtn.onclick = () => tabsContainer.scrollBy({ left: 200, behavior: 'smooth' });
+         
+         if (tabsContainer) {
+           tabsContainer.addEventListener('scroll', () => this.checkScrollButtons());
+           tabsContainer.addEventListener('wheel', (e) => { 
+             if (e.deltaY !== 0) { 
+               e.preventDefault(); 
+               tabsContainer.scrollBy({ left: e.deltaY, behavior: 'auto' }); 
+             } 
+           });
+         }
+         window.addEventListener('resize', () => this.checkScrollButtons());
+         
          const inputs = [
          ['cfg-digit-count', 'digitCount', 'int'],
          ['cfg-display-time', 'displayTime', 'float'],
@@ -598,7 +867,6 @@
          ['cfg-max-attempts', 'maxAttempts', 'int'],
          ['cfg-history-limit', 'historyLimit', 'int'],
          ['cfg-include-digits', 'includeDigitsTo', 'str'],
-         ['cfg-major-toggle', 'majorMode', 'bool'],
          ['cfg-store-mapping', 'storeMapping', 'bool'],
          ['cfg-allow-zeros', 'allowLeadingZeros', 'bool'],
          ['cfg-force-zeros', 'forceLeadingZeros', 'bool'],
@@ -620,6 +888,28 @@
          this.validateSettings();
          };
          }
+         });
+         
+         const countInputs = [
+         ['cfg-count-start', 'countStart', 'int'],
+         ['cfg-count-end', 'countEnd', 'int'],
+         ['cfg-count-start-num', 'countStartNum', 'str'],
+         ['cfg-count-operator', 'countOperator', 'str'],
+         ['cfg-count-switch', 'countSwitch', 'str'],
+         ['cfg-count-hidden', 'countHideValue', 'bool']
+         ];
+         countInputs.forEach(([id, key, type]) => {
+           const el = this.$(id);
+           if (el) {
+             el.oninput = (e) => {
+               let val;
+               if (type === 'int') val = parseInt(e.target.value) || 0;
+               else if (type === 'bool') val = e.target.checked;
+               else val = e.target.value;
+               settings[key] = val;
+               saveSettings();
+             };
+           }
          });
          
          document.getElementsByName('major-dir').forEach(r => {
@@ -655,8 +945,11 @@
          loadDemoBtn.onclick = () => {
          const mappingArea = this.$('cfg-major-mapping');
          if (mappingArea) {
-         mappingArea.value = "Tie = 1\nNoah = 2\nMa = 3\nRay = 4\nLaw = 5\nShoe = 6\nCow = 7\nFee = 8\nPie = 9\nZoo = 0";
-         if (importBtn) importBtn.click();
+           mappingArea.value = DEMO_MAPPING;
+           MajorSystem.importMapping(DEMO_MAPPING);
+           const status = this.$('mapping-status');
+           if (status) status.textContent = '✅ Demo mapping loaded (0-99)';
+           if (settings.storeMapping) localStorage.setItem(MAPPING_KEY, DEMO_MAPPING);
          }
          };
          }
@@ -706,12 +999,19 @@
          const prompt = this.$('recall-prompt');
          if (!prompt) return;
          
-         if (settings.majorMode) {
+         if (settings.currentMode === 'major') {
          if (settings.majorDirection === 'numberToWord') {
          prompt.textContent = `The number was: ${this.currentNum}`;
          } else {
          prompt.textContent = `The word was: ${this.encoded.join(' ')}`;
          }
+         } else if (settings.currentMode === 'counting') {
+           const hideValue = settings.countHideValue;
+           if (hideValue) {
+             prompt.textContent = `The current value is: ${this.currentNum}`;
+           } else {
+             prompt.textContent = `The number was: ${this.currentNum}`;
+           }
          } else {
          prompt.textContent = `The number was: ${this.currentNum}`;
          }
@@ -730,233 +1030,498 @@
          }
          },
          
+         checkScrollButtons() {
+           const tabsContainer = this.$('modes-tabs-container');
+           const scrollLeftBtn = this.$('modes-scroll-left');
+           const scrollRightBtn = this.$('modes-scroll-right');
+           if (!tabsContainer) return;
+           const maxScroll = tabsContainer.scrollWidth - tabsContainer.clientWidth;
+           if (scrollLeftBtn) scrollLeftBtn.classList.toggle('hidden', tabsContainer.scrollLeft <= 0);
+           if (scrollRightBtn) scrollRightBtn.classList.toggle('hidden', tabsContainer.scrollLeft >= maxScroll - 1);
+         },
+         
+         parseCountOperator(op) {
+           const match = op.match(/(\d+)([+\-]+)/);
+           if (!match) return { value: 1, up: true, down: false, switch: false };
+           const val = parseInt(match[1]);
+           const ops = match[2];
+           const hasPlus = ops.includes('+');
+           const hasMinus = ops.includes('-');
+           return {
+             value: val,
+             up: hasPlus,
+             down: hasMinus,
+             switch: hasPlus && hasMinus
+           };
+         },
+         
+         generateCountingSequence() {
+           let start = settings.countStart;
+           let end = settings.countEnd;
+           const customStartRaw = settings.countStartNum;
+           const actualStart = (customStartRaw !== undefined && customStartRaw !== null && customStartRaw !== '') ? parseInt(customStartRaw) : start;
+           
+           const op = this.parseCountOperator(settings.countOperator);
+           const switchTo = settings.countSwitch;
+           const excludeDigits = settings.excludeDigits.split(',').map(d => d.trim()).filter(d => d);
+           
+           const sequence = [];
+           let current = actualStart;
+           let currentEnd = end;
+           let directionUp = true;
+           if (!op.up && op.down) directionUp = false;
+           let stepCounter = 0;
+           
+           const maxSteps = Math.abs(end - start) * 2 + 200;
+           let steps = 0;
+           
+           while (steps < maxSteps) {
+             const numStr = current.toString();
+             const excluded = excludeDigits.some(d => numStr.includes(d));
+             const padded = numStr.padStart(settings.digitCount, '0');
+             const existsInMapping = MajorSystem.digitsToWords.has(numStr) || MajorSystem.digitsToWords.has(padded);
+             
+             if (!excluded && existsInMapping) {
+               sequence.push(current);
+             }
+             
+             if (directionUp && op.up) {
+               current++;
+               if (current > currentEnd) break;
+             } else if (!directionUp && op.down) {
+               current--;
+               if (current < currentEnd) break;
+             } else {
+               break;
+             }
+             
+             stepCounter++;
+             if (stepCounter >= op.value) {
+               stepCounter = 0;
+               if (op.switch) {
+                 directionUp = !directionUp;
+                 if (switchTo === 'start') {
+                   currentEnd = start;
+                 } else if (switchTo === 'end') {
+                   currentEnd = end;
+                 } else if (switchTo === 'auto') {
+                   const temp = current;
+                   current = currentEnd;
+                   currentEnd = temp;
+                   if (current < currentEnd) directionUp = true;
+                   else if (current > currentEnd) directionUp = false;
+                   steps++;
+                   continue;
+                 }
+               }
+             }
+             
+             steps++;
+           }
+           
+           const uniqueSeq = [];
+           const seen = new Set();
+           for (const num of sequence) {
+             if (!seen.has(num)) {
+               seen.add(num);
+               uniqueSeq.push(num);
+             }
+           }
+           return uniqueSeq;
+         },
+         
+         startCountingGame() {
+           if (MajorSystem.digitsToWords.size === 0) {
+             alert('Please import a Major System mapping first.');
+             return;
+           }
+           
+           this.countingSequence = this.generateCountingSequence();
+           if (this.countingSequence.length === 0) {
+             alert('No valid numbers in sequence! Check your Major System mapping, range and exclude digits.');
+             return;
+           }
+           
+           this.countingIndex = 0;
+           this.currentNum = this.countingSequence[0].toString();
+           const maxAtt = settings.maxAttempts;
+           this.attempts = maxAtt === -1 ? Infinity : (maxAtt === 0 ? 1 : maxAtt);
+           
+           this.showPhase('recall');
+           this.hintUsed = false;
+           
+           const hideValue = settings.countHideValue;
+           const startNum = settings.countStart;
+           const endNum = settings.countEnd;
+           
+           const getWordForNumberDisplay = (num) => {
+             const str = num.toString();
+             // zuerst ohne Padding
+             let words = MajorSystem.digitsToWords.get(str);
+             if (words && words.length) return words[0];
+             // dann mit Padding
+             const padded = str.padStart(settings.digitCount, '0');
+             words = MajorSystem.digitsToWords.get(padded);
+             return words ? words[0] : str;
+           };
+           
+           const promptEl = this.$('recall-prompt');
+           if (hideValue) {
+             const startWord = getWordForNumberDisplay(startNum);
+             const endWord = getWordForNumberDisplay(endNum);
+             promptEl.textContent = `Range: ${startWord} (${startNum}) → ${endWord} (${endNum}) | ${this.countingIndex + 1}/${this.countingSequence.length}`;
+           } else {
+             const display = (settings.majorDirection === 'wordToNumber') 
+               ? this.getWordForNumber(this.currentNum) 
+               : Formatter.applySpacing(this.currentNum, settings.spacing);
+             promptEl.textContent = `Current: ${display} (${this.countingIndex + 1}/${this.countingSequence.length})`;
+           }
+           
+           const input = this.$('recall-input');
+           if (input) {
+             input.value = '';
+             input.focus();
+           }
+           const feedback = this.$('recall-feedback');
+           if (feedback) feedback.textContent = '';
+           const attemptsDisp = this.$('attempts-display');
+           if (attemptsDisp) attemptsDisp.textContent = this.attempts === Infinity ? 'Attempts: ∞' : `Attempts: ${this.attempts}`;
+         },
+         
+         getWordForNumber(num) {
+           const str = num.toString();
+           // zuerst ohne Padding (für Zahlen wie 0, 1, ..., 99)
+           let wordsList = MajorSystem.digitsToWords.get(str);
+           if (wordsList && wordsList.length > 0) return wordsList[0];
+           // dann mit Padding (für führende Nullen, falls Mapping entsprechend)
+           const padded = str.padStart(settings.digitCount, '0');
+           wordsList = MajorSystem.digitsToWords.get(padded);
+           return wordsList ? wordsList[0] : num;
+         },
+         
          startGame() {
-         if (settings.majorMode && MajorSystem.wordToDigits.size === 0) {
-         alert('Please import a Major System mapping first.');
-         return;
-         }
-         
-         try {
-         this.currentNum = NumberGenerator.generate(settings);
-         if (settings.majorMode) {
-         const res = MajorSystem.encode(this.currentNum, settings.encodingStrategy);
-         if (res.partial) {
-         alert(`Mapping incomplete for ${this.currentNum}. Missing: ${res.unmatched}`);
-         return;
-         }
-         this.encoded = res.words;
-         }
-         
-         this.attempts = settings.maxAttempts === -1 ? Infinity : (settings.maxAttempts === 0 ? 1 : settings.maxAttempts);
-         this.showPhase('reveal');
-         
-         const display = (settings.majorMode && settings.majorDirection === 'wordToNumber') ? this.encoded.join(' ') : Formatter.applySpacing(this.currentNum, settings.spacing);
-         const numDisplay = this.$('number-display');
-         if (numDisplay) {
-         numDisplay.textContent = display;
-         const len = display.length;
-         let fs = 'text-5xl sm:text-7xl';
-         if (len > 8) fs = 'text-4xl sm:text-5xl';
-         if (len > 15) fs = 'text-2xl sm:text-3xl';
-         if (len > 25) fs = 'text-xl sm:text-2xl';
-         numDisplay.className = `num-reveal font-black tracking-widest font-code text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800/50 rounded-2xl py-8 px-4 mb-4 border border-gray-100 dark:border-gray-800 select-none max-w-full overflow-hidden break-words ${fs}`;
-         }
-         
-         if (settings.displayTime > 0) {
-         const countdown = this.$('countdown-display');
-         if (countdown) countdown.textContent = settings.displayTime;
-         
-         const bar = this.$('timer-bar-fill');
-         if (bar) {
-         bar.style.transition = 'none';
-         bar.style.width = '100%';
-         setTimeout(() => {
-         bar.style.transition = `width ${settings.displayTime}s linear`;
-         bar.style.width = '0%';
-         }, 50);
-         }
-         
-         if (this.timer) clearInterval(this.timer);
-         const startTime = Date.now();
-         const endTime = startTime + (settings.displayTime * 1000);
-         
-         this.timer = setInterval(() => {
-         const now = Date.now();
-         const remaining = Math.max(0, (endTime - now) / 1000);
-         const cd = this.$('countdown-display');
-         if (cd) cd.textContent = settings.displayTime < 1 ? remaining.toFixed(1) : Math.ceil(remaining);
-         if (now >= endTime) this.beginRecall();
-         }, 50);
-         
-         const timerContainer = this.$('timer-bar-container');
-         if (timerContainer) timerContainer.classList.remove('hidden');
-         const continueBtn = this.$('btn-continue-reveal');
-         if (continueBtn) continueBtn.classList.add('hidden');
-         const skipBtn = this.$('btn-skip-reveal');
-         if (skipBtn) skipBtn.classList.remove('hidden');
-         } else {
-         const countdown = this.$('countdown-display');
-         if (countdown) countdown.textContent = '∞';
-         const timerContainer = this.$('timer-bar-container');
-         if (timerContainer) timerContainer.classList.add('hidden');
-         const continueBtn = this.$('btn-continue-reveal');
-         if (continueBtn) continueBtn.classList.remove('hidden');
-         const skipBtn = this.$('btn-skip-reveal');
-         if (skipBtn) skipBtn.classList.add('hidden');
-         }
-         } catch (e) {
-         alert(e.message);
-         }
+           const mode = settings.currentMode || 'standard';
+           
+           if (mode === 'counting') {
+             this.startCountingGame();
+             return;
+           }
+           
+           if (mode === 'major' && MajorSystem.wordToDigits.size === 0) {
+             alert('Please import a Major System mapping first.');
+             return;
+           }
+           
+           try {
+             this.currentNum = NumberGenerator.generate(settings);
+             if (mode === 'major') {
+               const res = MajorSystem.encode(this.currentNum, settings.encodingStrategy);
+               if (res.partial) {
+                 alert(`Mapping incomplete for ${this.currentNum}. Missing: ${res.unmatched}`);
+                 return;
+               }
+               this.encoded = res.words;
+             }
+             
+             this.attempts = settings.maxAttempts === -1 ? Infinity : (settings.maxAttempts === 0 ? 1 : settings.maxAttempts);
+             this.showPhase('reveal');
+             
+             const display = (mode === 'major' && settings.majorDirection === 'wordToNumber') ? this.encoded.join(' ') : Formatter.applySpacing(this.currentNum, settings.spacing);
+             const numDisplay = this.$('number-display');
+             if (numDisplay) {
+               numDisplay.textContent = display;
+               const len = display.length;
+               let fs = 'text-5xl sm:text-7xl';
+               if (len > 8) fs = 'text-4xl sm:text-5xl';
+               if (len > 15) fs = 'text-2xl sm:text-3xl';
+               if (len > 25) fs = 'text-xl sm:text-2xl';
+               numDisplay.className = `num-reveal font-black tracking-widest font-code text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800/50 rounded-2xl py-8 px-4 mb-4 border border-gray-100 dark:border-gray-800 select-none max-w-full overflow-hidden break-words ${fs}`;
+             }
+             
+             if (settings.displayTime > 0) {
+               const countdown = this.$('countdown-display');
+               if (countdown) countdown.textContent = settings.displayTime;
+               
+               const bar = this.$('timer-bar-fill');
+               if (bar) {
+                 bar.style.transition = 'none';
+                 bar.style.width = '100%';
+                 setTimeout(() => {
+                   bar.style.transition = `width ${settings.displayTime}s linear`;
+                   bar.style.width = '0%';
+                 }, 50);
+               }
+               
+               if (this.timer) clearInterval(this.timer);
+               const startTime = Date.now();
+               const endTime = startTime + (settings.displayTime * 1000);
+               
+               this.timer = setInterval(() => {
+                 const now = Date.now();
+                 const remaining = Math.max(0, (endTime - now) / 1000);
+                 const cd = this.$('countdown-display');
+                 if (cd) cd.textContent = settings.displayTime < 1 ? remaining.toFixed(1) : Math.ceil(remaining);
+                 if (now >= endTime) this.beginRecall();
+               }, 50);
+               
+               const timerContainer = this.$('timer-bar-container');
+               if (timerContainer) timerContainer.classList.remove('hidden');
+               const continueBtn = this.$('btn-continue-reveal');
+               if (continueBtn) continueBtn.classList.add('hidden');
+               const skipBtn = this.$('btn-skip-reveal');
+               if (skipBtn) skipBtn.classList.remove('hidden');
+             } else {
+               const countdown = this.$('countdown-display');
+               if (countdown) countdown.textContent = '∞';
+               const timerContainer = this.$('timer-bar-container');
+               if (timerContainer) timerContainer.classList.add('hidden');
+               const continueBtn = this.$('btn-continue-reveal');
+               if (continueBtn) continueBtn.classList.remove('hidden');
+               const skipBtn = this.$('btn-skip-reveal');
+               if (skipBtn) skipBtn.classList.add('hidden');
+             }
+           } catch (e) {
+             alert(e.message);
+           }
          },
          
          beginRecall() {
-         if (this.timer) {
-         clearInterval(this.timer);
-         this.timer = null;
-         }
-         this.hintUsed = false;
-         this.showPhase('recall');
-         const input = this.$('recall-input');
-         if (input) {
-         input.value = '';
-         input.focus();
-         }
-         const feedback = this.$('recall-feedback');
-         if (feedback) feedback.textContent = '';
-         
-         const attemptsDisp = this.$('attempts-display');
-         if (attemptsDisp) attemptsDisp.textContent = this.attempts === Infinity ? 'Attempts: ∞' : `Attempts: ${this.attempts}`;
-         
-         const prompt = this.$('recall-prompt');
-         if (prompt) {
-         if (settings.majorMode && settings.majorDirection === 'numberToWord') {
-         prompt.textContent = 'Enter the words...';
-         } else {
-         prompt.textContent = 'What was the number?';
-         }
-         }
+           if (this.timer) {
+             clearInterval(this.timer);
+             this.timer = null;
+           }
+           this.hintUsed = false;
+           this.showPhase('recall');
+           const input = this.$('recall-input');
+           if (input) {
+             input.value = '';
+             input.focus();
+           }
+           const feedback = this.$('recall-feedback');
+           if (feedback) feedback.textContent = '';
+           
+           const attemptsDisp = this.$('attempts-display');
+           if (attemptsDisp) attemptsDisp.textContent = this.attempts === Infinity ? 'Attempts: ∞' : `Attempts: ${this.attempts}`;
+           
+           const prompt = this.$('recall-prompt');
+           if (prompt) {
+             if (settings.currentMode === 'major' && settings.majorDirection === 'numberToWord') {
+               prompt.textContent = 'Enter the words...';
+             } else if (settings.currentMode !== 'counting') {
+               prompt.textContent = 'What was the number?';
+             }
+           }
          },
          
          submitAnswer() {
-         const input = this.$('recall-input');
-         if (!input) return;
-         const val = input.value.trim();
-         let correct = false;
+           const mode = settings.currentMode || 'standard';
+           
+           if (mode === 'counting') {
+             this.submitCountingAnswer();
+             return;
+           }
+           
+           const input = this.$('recall-input');
+           if (!input) return;
+           const val = input.value.trim();
+           let correct = false;
+           
+           if (mode === 'major' && settings.majorDirection === 'numberToWord') {
+             correct = val.toLowerCase() === this.encoded.join(' ').toLowerCase();
+           } else {
+             correct = val === this.currentNum;
+           }
+           
+           if (correct) {
+             if (!this.hintUsed) {
+               this.streak++;
+             }
+             this.resolveGame(true);
+           } else {
+             if (this.attempts !== Infinity) {
+               this.attempts--;
+               if (this.attempts <= 0) {
+                 this.streak = 0;
+                 this.resolveGame(false);
+               } else {
+                 const attemptsDisp = this.$('attempts-display');
+                 if (attemptsDisp) attemptsDisp.textContent = `Attempts: ${this.attempts}`;
+                 const feedback = this.$('recall-feedback');
+                 if (feedback) feedback.textContent = '❌ Incorrect, try again';
+                 input.classList.add('animate-shake');
+                 setTimeout(() => input.classList.remove('animate-shake'), 400);
+               }
+             } else {
+               const feedback = this.$('recall-feedback');
+               if (feedback) feedback.textContent = '❌ Incorrect, try again';
+             }
+           }
+         },
          
-         if (settings.majorMode && settings.majorDirection === 'numberToWord') {
-         correct = val.toLowerCase() === this.encoded.join(' ').toLowerCase();
-         } else {
-         correct = val === this.currentNum;
-         }
-         
-         if (correct) {
-         if (!this.hintUsed) {
-         this.streak++;
-         }
-         this.resolveGame(true);
-         } else {
-         if (this.attempts !== Infinity) {
-         this.attempts--;
-         if (this.attempts <= 0) {
-         this.streak = 0;
-         this.resolveGame(false);
-         } else {
-         const attemptsDisp = this.$('attempts-display');
-         if (attemptsDisp) attemptsDisp.textContent = `Attempts: ${this.attempts}`;
-         const feedback = this.$('recall-feedback');
-         if (feedback) feedback.textContent = '❌ Incorrect, try again';
-         input.classList.add('animate-shake');
-         setTimeout(() => input.classList.remove('animate-shake'), 400);
-         }
-         } else {
-         const feedback = this.$('recall-feedback');
-         if (feedback) feedback.textContent = '❌ Incorrect, try again';
-         }
-         }
+         submitCountingAnswer() {
+           const input = this.$('recall-input');
+           if (!input) return;
+           const val = input.value.trim();
+           let correct = false;
+           
+           if (settings.majorDirection === 'numberToWord') {
+             const expectedWord = this.getWordForNumber(this.currentNum);
+             correct = val.toLowerCase() === expectedWord.toLowerCase();
+           } else {
+             correct = val === this.currentNum;
+           }
+           
+           if (correct) {
+             this.countingIndex++;
+             if (this.countingIndex >= this.countingSequence.length) {
+               if (!this.hintUsed) this.streak++;
+               this.resolveGame(true);
+             } else {
+               this.currentNum = this.countingSequence[this.countingIndex].toString();
+               const hideValue = settings.countHideValue;
+               const startNum = settings.countStart;
+               const endNum = settings.countEnd;
+               
+               const getWordForNumberDisplay = (num) => {
+                 const str = num.toString();
+                 let words = MajorSystem.digitsToWords.get(str);
+                 if (words && words.length) return words[0];
+                 const padded = str.padStart(settings.digitCount, '0');
+                 words = MajorSystem.digitsToWords.get(padded);
+                 return words ? words[0] : str;
+               };
+               
+               const promptEl = this.$('recall-prompt');
+               if (hideValue) {
+                 const startWord = getWordForNumberDisplay(startNum);
+                 const endWord = getWordForNumberDisplay(endNum);
+                 promptEl.textContent = `Range: ${startWord} (${startNum}) → ${endWord} (${endNum}) | ${this.countingIndex + 1}/${this.countingSequence.length}`;
+               } else {
+                 const display = (settings.majorDirection === 'wordToNumber') 
+                   ? this.getWordForNumber(this.currentNum) 
+                   : Formatter.applySpacing(this.currentNum, settings.spacing);
+                 promptEl.textContent = `Current: ${display} (${this.countingIndex + 1}/${this.countingSequence.length})`;
+               }
+               input.value = '';
+               input.focus();
+               const feedback = this.$('recall-feedback');
+               if (feedback) feedback.textContent = '';
+               const attemptsDisp = this.$('attempts-display');
+               if (attemptsDisp) attemptsDisp.textContent = this.attempts === Infinity ? 'Attempts: ∞' : `Attempts: ${this.attempts}`;
+             }
+           } else {
+             if (this.attempts !== Infinity) {
+               this.attempts--;
+               if (this.attempts <= 0) {
+                 this.streak = 0;
+                 this.resolveGame(false);
+               } else {
+                 const attemptsDisp = this.$('attempts-display');
+                 if (attemptsDisp) attemptsDisp.textContent = this.attempts === Infinity ? 'Attempts: ∞' : `Attempts: ${this.attempts}`;
+                 const feedback = this.$('recall-feedback');
+                 if (feedback) feedback.textContent = '❌ Incorrect, try again';
+                 input.classList.add('animate-shake');
+                 setTimeout(() => input.classList.remove('animate-shake'), 400);
+               }
+             } else {
+               const feedback = this.$('recall-feedback');
+               if (feedback) feedback.textContent = '❌ Incorrect, try again';
+             }
+           }
          },
          
          resolveGame(win) {
-         this.showPhase('result');
-         const icon = this.$('result-icon');
-         if (icon) icon.textContent = win ? '🎉' : '😔';
-         const title = this.$('result-title');
-         if (title) title.textContent = win ? 'Correct!' : 'Game Over';
-         const num = this.$('result-number');
-         if (num) num.textContent = Formatter.applySpacing(this.currentNum, settings.spacing);
-         
-         const majorEl = this.$('result-major');
-         if (majorEl) {
-         if (settings.majorMode) {
-         majorEl.textContent = `Words: ${this.encoded.join(' ')}`;
-         majorEl.classList.remove('hidden');
-         } else {
-         majorEl.classList.add('hidden');
-         }
-         }
-         
-         const streakVal = this.$('streak-value');
-         if (streakVal) streakVal.textContent = this.streak;
-         const streakDisp = this.$('streak-display');
-         if (streakDisp) streakDisp.classList.toggle('hidden', this.streak === 0);
-         
-         if (settings.historyLimit !== 0) {
-         const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-         const formattedNum = Formatter.applySpacing(this.currentNum, settings.spacing);
-         let display = formattedNum;
-         if (settings.majorMode) {
-         display = settings.majorDirection === 'wordToNumber' ? `${this.encoded.join(' ')} → ${formattedNum}` : `${formattedNum} → ${this.encoded.join(' ')}`;
-         }
-         history.unshift({ num: display, win, hintUsed: this.hintUsed, date: new Date().toLocaleTimeString() });
-         const final = settings.historyLimit === -1 ? history : history.slice(0, settings.historyLimit);
-         localStorage.setItem(HISTORY_KEY, JSON.stringify(final));
-         this.renderHistory();
-         }
+           this.showPhase('result');
+           const icon = this.$('result-icon');
+           if (icon) icon.textContent = win ? '🎉' : '😔';
+           const title = this.$('result-title');
+           if (title) title.textContent = win ? 'Correct!' : 'Game Over';
+           const num = this.$('result-number');
+           if (num) num.textContent = Formatter.applySpacing(this.currentNum, settings.spacing);
+           
+           const majorEl = this.$('result-major');
+           if (majorEl) {
+             if (settings.currentMode === 'major') {
+               majorEl.textContent = `Words: ${this.encoded.join(' ')}`;
+               majorEl.classList.remove('hidden');
+             } else {
+               majorEl.classList.add('hidden');
+             }
+           }
+           
+           const streakVal = this.$('streak-value');
+           if (streakVal) streakVal.textContent = this.streak;
+           const streakDisp = this.$('streak-display');
+           if (streakDisp) streakDisp.classList.toggle('hidden', this.streak === 0);
+           
+           if (settings.historyLimit !== 0) {
+             const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+             const formattedNum = Formatter.applySpacing(this.currentNum, settings.spacing);
+             let display = formattedNum;
+             if (settings.currentMode === 'major') {
+               display = settings.majorDirection === 'wordToNumber' ? `${this.encoded.join(' ')} → ${formattedNum}` : `${formattedNum} → ${this.encoded.join(' ')}`;
+             } else if (settings.currentMode === 'counting') {
+               display = `Range ${settings.countStart} → ${settings.countEnd}`;
+             }
+             let modeIcon = '📖';
+             if (settings.currentMode === 'major') modeIcon = '🧩';
+             else if (settings.currentMode === 'counting') modeIcon = '🔄';
+             history.unshift({ num: display, win, hintUsed: this.hintUsed, date: new Date().toLocaleTimeString(), mode: modeIcon });
+             const final = settings.historyLimit === -1 ? history : history.slice(0, settings.historyLimit);
+             localStorage.setItem(HISTORY_KEY, JSON.stringify(final));
+             this.renderHistory();
+           }
          },
          
          resetToIdle() {
-         if (this.timer) {
-         clearInterval(this.timer);
-         this.timer = null;
-         }
-         this.showPhase('idle');
+           if (this.timer) {
+             clearInterval(this.timer);
+             this.timer = null;
+           }
+           if (this.countingAnswerTimer) {
+             clearInterval(this.countingAnswerTimer);
+             this.countingAnswerTimer = null;
+           }
+           this.showPhase('idle');
          },
          
          showPhase(p) {
-         const phases = ['idle', 'reveal', 'recall', 'result'];
-         phases.forEach(x => {
-         const el = this.$(`phase-${x}`);
-         if (el) el.classList.toggle('hidden', x !== p);
-         });
-         
-         const questionBtn = this.$('btn-question');
-         if (questionBtn) questionBtn.classList.toggle('hidden', p !== 'recall');
-         
-         if (p === 'idle' || p === 'result') {
-         const attemptsDisp = this.$('attempts-display');
-         if (attemptsDisp) attemptsDisp.textContent = '';
-         }
+           const phases = ['idle', 'reveal', 'recall', 'result'];
+           phases.forEach(x => {
+             const el = this.$(`phase-${x}`);
+             if (el) el.classList.toggle('hidden', x !== p);
+           });
+           
+           const questionBtn = this.$('btn-question');
+           if (questionBtn) questionBtn.classList.toggle('hidden', p !== 'recall');
+           
+           if (p === 'idle' || p === 'result') {
+             const attemptsDisp = this.$('attempts-display');
+             if (attemptsDisp) attemptsDisp.textContent = '';
+           }
          },
          
          renderHistory() {
-         const h = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-         const list = this.$('history-list');
-         if (!list) return;
-         if (h.length === 0) {
-         list.innerHTML = 'No games yet.';
-         return;
-         }
-         list.innerHTML = h.map(x => `
-         <div class="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-800 last:border-0">
-         <span class="flex items-center gap-2">
-         ${x.win ? '<span class="text-green-500">✅</span>' : '<span class="text-red-500">❌</span>'}
-         <span class="font-code">${x.num}</span>
-         </span>
-         <div class="flex items-center gap-2">
-         ${x.hintUsed ? '<span class="text-[10px] font-bold text-amber-500 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">Tipp benötigt</span>' : ''}
-         <span class="text-xs opacity-50 tabular-nums">${x.date}</span>
-         </div>
-         </div>
-         `).join('');
+           const h = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+           const list = this.$('history-list');
+           if (!list) return;
+           if (h.length === 0) {
+             list.innerHTML = 'No games yet.';
+             return;
+           }
+           list.innerHTML = h.map(x => `
+           <div class="flex justify-between py-1.5 border-b border-gray-100 dark:border-gray-800 last:border-0">
+             <span class="flex items-center gap-2">
+               <span class="text-xs opacity-70">${x.mode || '📖'}</span>
+               ${x.win ? '<span class="text-green-500">✅</span>' : '<span class="text-red-500">❌</span>'}
+               <span class="font-code">${x.num}</span>
+             </span>
+             <div class="flex items-center gap-2">
+               ${x.hintUsed ? '<span class="text-[10px] font-bold text-amber-500 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">Tipp benötigt</span>' : ''}
+               <span class="text-xs opacity-50 tabular-nums">${x.date}</span>
+             </div>
+           </div>
+           `).join('');
          }
          };
          
